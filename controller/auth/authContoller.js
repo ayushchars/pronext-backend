@@ -47,8 +47,8 @@ export const sendOtpEmail = async (email, otp) => {
     const transporter = nodemailer.createTransport({
       service: "gmail",
       auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
+        user: "harshit.inventcolab@gmail.com",
+        pass: "xggpvgdhddkzyecb",
       },
       tls: {
         rejectUnauthorized: false,
@@ -56,7 +56,7 @@ export const sendOtpEmail = async (email, otp) => {
     });
 
     await transporter.sendMail({
-      from: `"Opt" <${process.env.EMAIL_USER}>`,
+      from: `"Opt" <harshit.inventcolab@gmail.com}>`,
       to: email, 
       subject: "Your OTP Code",
       html: `
