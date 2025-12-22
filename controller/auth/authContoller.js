@@ -1,4 +1,4 @@
-import { compairPassword, hashPassword } from "../../middleware/authMiddleware.js";
+import { comparePassword, hashPassword } from "../../middleware/authMiddleware.js";
 import userModel from "../../models/authModel.js";
 import Jwt from "jsonwebtoken";
 import twilio from "twilio";
@@ -226,7 +226,7 @@ export const login = async (req, res) => {
     }
 
     // 🔑 Verify password
-    const match = await compairPassword(password, user.password);
+    const match = await comparePassword(password, user.password);
     if (!match) {
       return ErrorResponse(res, "Invalid password");
     }

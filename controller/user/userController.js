@@ -1,5 +1,5 @@
 import userModel from "../../models/authModel.js";
-import { compairPassword, hashPassword } from "../../middleware/authMiddleware.js";
+import { comparePassword, hashPassword } from "../../middleware/authMiddleware.js";
 import {
   ErrorResponse,
   successResponse,
@@ -127,7 +127,7 @@ export const changePassword = async (req, res) => {
     }
 
     // Verify current password
-    const isPasswordValid = await compairPassword(currentPassword, user.password);
+    const isPasswordValid = await comparePassword(currentPassword, user.password);
 
     if (!isPasswordValid) {
       return ErrorResponse(res, "Current password is incorrect", 401);
@@ -482,7 +482,7 @@ export const deleteUserAccount = async (req, res) => {
     }
 
     // Verify password
-    const isPasswordValid = await compairPassword(password, user.password);
+    const isPasswordValid = await comparePassword(password, user.password);
 
     if (!isPasswordValid) {
       return ErrorResponse(res, "Password is incorrect", 401);

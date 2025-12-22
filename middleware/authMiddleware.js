@@ -1,70 +1,195 @@
 import jwt from 'jsonwebtoken';
+import bcrypt from 'bcrypt';
 
-export const requireSignin = async (req, res, next) => {
+/**
+ * Main Authentication Middleware
+ * Verifies JWT token and attaches user to request
+ */
+export const authMiddleware = async (req, res, next) => {
   try {
     const token = req.headers.authorization;
-    
 
     if (!token) {
-      return res.status(401).send({
+      return res.status(401).json({
         success: false,
-        message: "Jwt token missing"
-    });
-    }
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded;
-
-    next();
-  } catch (err) {   
-    return res.status(401).send({
-      success: false,
-      message: "Unauthorized Access."
-  });
-  }
-};
-export const validateUser = (req, res, next) => {
-    const { fname,lname, email, password} = req.body;
-  
-    if (!fname || !lname || !email || !password) {
-      return res.status(400).send({ error: "All fields are required" });
-    }
-  
-    next();
-  };
-  
-  
-
-  import bcrypt from "bcrypt"
-
-export const hashPassword = async (password)=>{
-    try{
-        const saltRound = 10
-        const hashedPassword = await bcrypt.hash(password,saltRound)
-        return hashedPassword
-    }
-    catch(err){
-        console.log(err)
-    }
-}
-
-export const compairPassword =  async(password,hashedPassword) =>{
-    return bcrypt.compare(password,hashedPassword)
-}
-export const isAdmin = (req, res, next) => {
-  try {
-    console.log(req.user,"sddsds")
-    if (!req.user || req.user.role !== "Admin") {
-      return res.status(403).json({
-        success: false,
-        message: "Admin access required",
+        message: "JWT token missing"
       });
     }
 
+    // Remove 'Bearer ' prefix if present
+    const tokenWithoutBearer = token.startsWith('Bearer ') ? token.slice(7) : token;
+
+    const decoded = jwt.verify(tokenWithoutBearer, process.env.JWT_SECRET);
+    req.user = decoded;
+    next();
+  } catch (err) {
+    return res.status(401).json({
+      success: false,
+      message: "Unauthorized Access. Invalid or expired token."
+    });
+  }
+};
+
+/**
+ * Alias for authMiddleware for backward compatibility
+ */
+export const requireSignin = authMiddleware;
+
+/**
+ * Validate User Input
+ */
+export const validateUser = (req, res, next) => {
+  const { fname, lname, email, password } = req.body;
+
+  if (!fname || !lname || !email || !password) {
+    return res.status(400).json({
+      success: false,
+      message: "All fields are required"
+    });
+  }
+
+  next();
+};
+
+/**
+ * Hash Password
+ */
+export const hashPassword = async (password) => {
+  try {
+    const saltRound = 10;
+    const hashedPassword = await bcrypt.hash(password, saltRound);
+    return hashedPassword;
+  } catch (err) {
+    console.error('Error hashing password:', err);
+    throw err;
+  }
+};
+
+/**
+ * Compare Passwords
+ */
+export const comparePassword = async (password, hashedPassword) => {
+  try {
+    return await bcrypt.compare(password, hashedPassword);
+  } catch (err) {
+    console.error('Error comparing passwords:', err);
+    throw err;
+  }
+};
+
+/**
+ * Check if user is Admin
+ */
+export const isAdmin = (req, res, next) => {
+  try {
+    if (!req.user || req.user.role !== "Admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Admin access required"
+      });
+    }
     next();
   } catch (error) {
     return res.status(403).json({
       success: false,
-      message: "Access denied",
+      message: "Access denied"
     });
   }
 };
+
+/**
+ * Check if user is verified (KYC verified)
+ */
+export const isVerified = (req, res, next) => {
+  try {
+    if (!req.user || req.user.kycStatus !== "verified") {
+      return res.status(403).json({
+        success: false,
+        message: "User must be KYC verified"
+      });
+    }
+    next();
+  } catch (error) {
+    return res.status(403).json({
+      success: false,
+      message: "Verification check failed"
+    });
+  }
+};
+
+/**
+ * Check if user account is active
+ */
+export const isActive = (req, res, next) => {
+  try {
+    if (!req.user || req.user.isActive === false) {
+      return res.status(403).json({
+        success: false,
+        message: "User account is inactive or suspended"
+      });
+    }
+    next();
+  } catch (error) {
+    return res.status(403).json({
+      success: false,
+      message: "Status check failed"
+    });
+  }
+};
+
+/**
+ * Check if user has required subscription tier
+ */
+export const hasSubscription = (requiredTiers = []) => {
+  return (req, res, next) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({
+          success: false,
+          message: "User not authenticated"
+        });
+      }
+
+      if (requiredTiers.length > 0 && !requiredTiers.includes(req.user.subscriptionTier)) {
+        return res.status(403).json({
+          success: false,
+          message: `Required subscription tier: ${requiredTiers.join(', ')}`
+        });
+      }
+
+      next();
+    } catch (error) {
+      return res.status(403).json({
+        success: false,
+        message: "Subscription check failed"
+      });
+    }
+  };
+};
+
+/**
+ * Optional Authentication - continues if valid, but doesn't require auth
+ */
+export const optionalAuth = async (req, res, next) => {
+  try {
+    const token = req.headers.authorization;
+
+    if (token) {
+      const tokenWithoutBearer = token.startsWith('Bearer ') ? token.slice(7) : token;
+      try {
+        const decoded = jwt.verify(tokenWithoutBearer, process.env.JWT_SECRET);
+        req.user = decoded;
+      } catch (err) {
+        // Token is invalid, but we continue anyway (optional)
+        req.user = null;
+      }
+    }
+
+    next();
+  } catch (error) {
+    next();
+  }
+};
+
+// Default export for backward compatibility
+export default authMiddleware;
