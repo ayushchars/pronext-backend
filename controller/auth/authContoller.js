@@ -9,6 +9,7 @@ import {
   notFoundResponse,
   successResponseWithData
 } from "../../helpers/apiResponse.js";
+import paymentModel from "../../models/paymentModel.js";
     const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
 
 const client = twilio(
@@ -95,7 +96,7 @@ export const register = async (req, res) => {
       otp,
     }).save();
 
-    await sendOtpSms(phone, otp);
+    // await sendOtpSms(phone, otp);
     // await sendOtpEmail(email, otp);
 // 
     return successResponse(
@@ -185,7 +186,7 @@ export const resendOtp = async (req, res) => {
     await user.save();
 
     if (user.Phone) {
-      await sendOtpSms(user.Phone, newOtp);
+      // await sendOtpSms(user.Phone, newOtp);
     }
     // if (user.email) {
     //   await sendOtpEmail(user.email, newOtp);
@@ -253,7 +254,7 @@ export const login = async (req, res) => {
     await user.save();
 
     if (user.phone) {
-      await sendOtpSms(user.phone, otp);
+      // await sendOtpSms(user.phone, otp);
     }
 
     return successResponseWithData(
@@ -308,6 +309,176 @@ export const getUserbyId = async (req, res) => {
     res.status(500).send({
       success: false,
       message: "Error while fetching users",
+    });
+  }
+};
+
+export const getUserPlatformMetrics = async (req, res) => {
+  try {
+    // 🔹 Time calculations
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const startOfMonth = new Date(
+      startOfDay.getFullYear(),
+      startOfDay.getMonth(),
+      1
+    );
+
+    // 🔹 Parallel execution (performance optimized)
+    const [
+      activeUsers,
+      todaySignups,
+      monthlySignups,
+      totalUsers,
+      totalRevenueAgg,
+      monthlyRevenueAgg,
+    ] = await Promise.all([
+      // 👤 USERS
+      userModel.countDocuments({ isSuspended: false }),
+
+      userModel.countDocuments({
+        createdAt: { $gte: startOfDay },
+      }),
+
+      userModel.countDocuments({
+        createdAt: { $gte: startOfMonth },
+      }),
+
+      userModel.countDocuments(),
+
+      // 💰 TOTAL REVENUE
+      paymentModel.aggregate([
+        { $match: { status: "paid" } },
+        {
+          $group: {
+            _id: null,
+            total: { $sum: "$amount" },
+          },
+        },
+      ]),
+
+      // 💰 MONTHLY REVENUE
+      paymentModel.aggregate([
+        {
+          $match: {
+            status: "paid",
+            createdAt: { $gte: startOfMonth },
+          },
+        },
+        {
+          $group: {
+            _id: null,
+            total: { $sum: "$amount" },
+          },
+        },
+      ]),
+    ]);
+
+    const totalRevenue = totalRevenueAgg[0]?.total || 0;
+    const monthlyRevenue = monthlyRevenueAgg[0]?.total || 0;
+
+    return successResponseWithData(
+      res,
+      "Platform metrics fetched successfully",
+      {
+        users: {
+          total: totalUsers,
+          active: activeUsers,
+          newToday: todaySignups,
+          newThisMonth: monthlySignups,
+        },
+        revenue: {
+          total: totalRevenue,
+          thisMonth: monthlyRevenue,
+        },
+      }
+    );
+  } catch (error) {
+    console.error("Dashboard metrics error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error fetching platform metrics",
+    });
+  }
+};
+
+export const getDashboardVisualizations = async (req, res) => {
+  try {
+    // 🔹 Time ranges
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const last7Days = new Date(today);
+    last7Days.setDate(last7Days.getDate() - 6);
+
+    const last30Days = new Date(today);
+    last30Days.setDate(last30Days.getDate() - 29);
+
+    // 🔹 Parallel execution for performance
+    const [
+      payoutTrends,
+      activeSubscriptions,
+      teamGrowth,
+    ] = await Promise.all([
+      // 💰 Payout Trends (Last 7 Days)
+      paymentModel.aggregate([
+        {
+          $match: {
+            status: "paid",
+            createdAt: { $gte: last7Days },
+          },
+        },
+        {
+          $group: {
+            _id: {
+              $dateToString: { format: "%Y-%m-%d", date: "$createdAt" },
+            },
+            totalAmount: { $sum: "$amount" },
+          },
+        },
+        { $sort: { _id: 1 } },
+      ]),
+
+      // 🔁 Active Subscriptions
+      userModel.countDocuments({
+        subscriptionStatus: true,
+        isSuspended: false,
+      }),
+
+      // 👥 Team Growth (Last 30 Days)
+      userModel.aggregate([
+        {
+          $match: {
+            createdAt: { $gte: last30Days },
+          },
+        },
+        {
+          $group: {
+            _id: {
+              $dateToString: { format: "%Y-%m-%d", date: "$createdAt" },
+            },
+            count: { $sum: 1 },
+          },
+        },
+        { $sort: { _id: 1 } },
+      ]),
+    ]);
+
+    return successResponseWithData(
+      res,
+      "Dashboard visualizations fetched successfully",
+      {
+        payoutTrends,            // line / bar chart
+        activeSubscriptions,     // stat / donut
+        teamGrowthAnalytics: teamGrowth, // line chart
+      }
+    );
+  } catch (error) {
+    console.error("Dashboard visualization error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error fetching dashboard visualizations",
     });
   }
 };

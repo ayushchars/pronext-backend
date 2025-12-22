@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 export const requireSignin = async (req, res, next) => {
   try {
     const token = req.headers.authorization;
+    
 
     if (!token) {
       return res.status(401).send({
@@ -49,3 +50,21 @@ export const hashPassword = async (password)=>{
 export const compairPassword =  async(password,hashedPassword) =>{
     return bcrypt.compare(password,hashedPassword)
 }
+export const isAdmin = (req, res, next) => {
+  try {
+    console.log(req.user,"sddsds")
+    if (!req.user || req.user.role !== "Admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Admin access required",
+      });
+    }
+
+    next();
+  } catch (error) {
+    return res.status(403).json({
+      success: false,
+      message: "Access denied",
+    });
+  }
+};

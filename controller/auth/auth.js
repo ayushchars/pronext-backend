@@ -1,6 +1,6 @@
 
 import express  from "express"
-import {register,login, getAllUsersExceptLoggedIn, getUserbyId, verifyOtp, resendOtp } from "./authContoller.js"
+import {register,login, getAllUsersExceptLoggedIn, getUserbyId, verifyOtp, resendOtp,getUserPlatformMetrics, getDashboardVisualizations } from "./authContoller.js"
 import {requireSignin,validateUser} from "../../middleware/authMiddleware.js"
 
 const router = express.Router()
@@ -11,6 +11,8 @@ router.post("/resendOtp" , resendOtp)
 router.post("/login" , login)
 router.get('/allusers', requireSignin, getAllUsersExceptLoggedIn);
 router.post('/getUserbyId', requireSignin, getUserbyId);
+router.get('/getUserPlatformMetrics', getUserPlatformMetrics);
+router.get('/getDashboardVisualizations', getDashboardVisualizations);
 
 
 
