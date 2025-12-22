@@ -103,7 +103,7 @@ export const register = async (req, res) => {
       phone,
       address,
       referralCode,
-      role: role,
+      role: role || "User",
       otp,
     }).save();
 
@@ -117,9 +117,11 @@ export const register = async (req, res) => {
       {
         userId: newUser._id,
         email: newUser.email,
-        message: "Please verify OTP to complete registration",
+        role: newUser.role,
+        message: "Please verify OTP to complete registration. Then proceed to payment for subscription.",
         otp: otp, // TEMPORARY - for testing only
-        otpExpiresIn: "1 minute"
+        otpExpiresIn: "1 minute",
+        nextStep: "Verify OTP and proceed to /api/payments for subscription"
       }
     );
   } catch (err) {

@@ -10,17 +10,35 @@ const nowLogger = logger.module("NOWPAYMENTS");
 
 class NOWPaymentsService {
   constructor() {
-    // Get API keys from environment variables
-    this.apiKey = process.env.NOWPAYMENTS_API_KEY || "";
-    this.ipnSecret = process.env.NOWPAYMENTS_IPN_SECRET || "";
     this.baseUrl = "https://api.nowpayments.io/v1";
-    
-    // Check if API key is configured
-    if (!this.apiKey) {
-      nowLogger.warn("NOWPayments API key not configured in environment variables");
-    } else {
-      nowLogger.success("NOWPayments API key loaded");
+    this._apiKey = null;
+    this._ipnSecret = null;
+    this._initialized = false;
+  }
+
+  // Lazy load API keys on first use
+  _ensureInitialized() {
+    if (!this._initialized) {
+      this._apiKey = process.env.NOWPAYMENTS_API_KEY || "";
+      this._ipnSecret = process.env.NOWPAYMENTS_IPN_SECRET || "";
+      this._initialized = true;
+      
+      if (!this._apiKey) {
+        nowLogger.warn("NOWPayments API key not configured in environment variables");
+      } else {
+        nowLogger.success("NOWPayments API key loaded");
+      }
     }
+  }
+
+  get apiKey() {
+    this._ensureInitialized();
+    return this._apiKey;
+  }
+
+  get ipnSecret() {
+    this._ensureInitialized();
+    return this._ipnSecret;
   }
 
   /**

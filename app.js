@@ -1,5 +1,7 @@
-import express from "express";
 import dotenv from "dotenv";
+dotenv.config();
+
+import express from "express";
 import connectDB from "./config/database.js";
 import route from "./controller/auth/auth.js";
 import sessionRoute from "./controller/session/session.js";
@@ -17,8 +19,6 @@ import { createServer } from "http";
 import { Server } from "socket.io";
 import { requestLogger, errorLogger, performanceMonitor } from "./middleware/loggingMiddleware.js";
 import setupRealtimeEvents from "./services/realtimeEventsHandler.js";
-
-dotenv.config();
 connectDB();
 
 const app = express();

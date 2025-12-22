@@ -406,17 +406,30 @@ export const handleIPNCallback = async (req, res) => {
     paymentRecord.lastUpdated = new Date(outcome_at || Date.now());
     await paymentRecord.save();
 
-    // If payment is finished, activate subscription
+    // If payment is finished, activate subscription based on amount
     if (payment_status === "finished") {
+      // Determine subscription tier based on amount
+      let subscriptionTier = "Basic";
+      if (price_amount >= 30) {
+        subscriptionTier = "Pro";
+      } else if (price_amount >= 15) {
+        subscriptionTier = "Premium";
+      } else {
+        subscriptionTier = "Basic";
+      }
+
       await userModel.findByIdAndUpdate(paymentRecord.userId, {
         subscriptionStatus: true,
-        subscriptionEndDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+        subscriptionTier: subscriptionTier,
+        subscriptionExpiryDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
         lastPaymentDate: new Date(),
       });
 
       paymentLogger.success("Subscription activated via webhook", {
         userId: paymentRecord.userId,
         orderId: order_id,
+        tier: subscriptionTier,
+        currency: pay_currency,
       });
     }
 
@@ -569,5 +582,105 @@ export const getPaymentStatistics = async (req, res) => {
   } catch (error) {
     paymentLogger.error("Error fetching payment statistics", error);
     return ErrorResponse(res, "Failed to fetch statistics", 500);
+  }
+};
+
+/**
+ * Create subscription payment
+ * POST /api/payments/subscribe
+ * Body: {
+ *   subscriptionTier: "Premium",  // Basic, Premium, Pro
+ *   pay_currency: "USDT"  // USDT, BTC, ETH, etc.
+ * }
+ */
+export const createSubscriptionPayment = async (req, res) => {
+  try {
+    const { subscriptionTier = "Premium", pay_currency = "USDT" } = req.body;
+    
+    paymentLogger.start("Creating subscription payment", {
+      tier: subscriptionTier,
+      payCurrency: pay_currency,
+    });
+
+    // Validate subscription tier
+    const validTiers = {
+      Basic: { amount: 5, description: "Basic Subscription - 30 Days" },
+      Premium: { amount: 15, description: "Premium Subscription - 30 Days" },
+      Pro: { amount: 30, description: "Pro Subscription - 30 Days" },
+    };
+
+    if (!validTiers[subscriptionTier]) {
+      paymentLogger.warn("Invalid subscription tier", { tier: subscriptionTier });
+      return ErrorResponse(res, "Invalid subscription tier. Must be Basic, Premium, or Pro");
+    }
+
+    const userId = req.user?._id;
+    const userEmail = req.user?.email;
+
+    if (!userId || !userEmail) {
+      paymentLogger.warn("User not authenticated for subscription payment");
+      return ErrorResponse(res, "User must be authenticated to purchase subscription", 401);
+    }
+
+    const tierData = validTiers[subscriptionTier];
+    const order_id = `subscription_${userId}_${subscriptionTier}_${Date.now()}`;
+
+    const paymentData = {
+      price_amount: tierData.amount,
+      price_currency: "USD",
+      pay_currency: pay_currency,
+      order_id: order_id,
+      order_description: tierData.description,
+      ipn_callback_url: `${process.env.BASE_URL || "http://localhost:5000"}/api/payments/webhook`,
+      customer_email: userEmail,
+    };
+
+    // Create invoice on NOWPayments
+    const invoice = await nowpaymentsService.createPaymentInvoice(paymentData);
+
+    // Save subscription payment record
+    const paymentRecord = await new paymentModel({
+      userId,
+      invoiceId: invoice.id,
+      orderId: order_id,
+      amount: tierData.amount,
+      currency: "USD",
+      payCurrency: pay_currency,
+      description: tierData.description,
+      status: "pending",
+      provider: "nowpayments",
+      invoiceUrl: invoice.invoice_url,
+      subscriptionType: subscriptionTier,
+      metadata: {
+        createdAt: new Date(),
+        invoiceData: invoice,
+        subscriptionTier: subscriptionTier,
+      },
+    }).save();
+
+    paymentLogger.success("Subscription payment invoice created", {
+      userId,
+      tier: subscriptionTier,
+      invoiceId: invoice.id,
+    });
+
+    return successResponseWithData(
+      res,
+      {
+        invoiceId: invoice.id,
+        orderId: order_id,
+        paymentUrl: invoice.invoice_url,
+        subscriptionTier: subscriptionTier,
+        amount: tierData.amount,
+        currency: "USD",
+        payCurrency: pay_currency,
+        walletAddress: invoice.pay_address || null,
+        message: "Please complete payment to activate subscription",
+      },
+      "Subscription payment invoice created successfully"
+    );
+  } catch (error) {
+    paymentLogger.error("Error creating subscription payment", error);
+    return ErrorResponse(res, "Failed to create subscription payment", 500);
   }
 };

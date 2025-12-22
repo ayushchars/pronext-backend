@@ -9,6 +9,7 @@ import {
   getPriceEstimate,
   createPaymentInvoice,
   createPaymentOrder,
+  createSubscriptionPayment,
   getInvoiceStatus,
   getPaymentStatus,
   getUserPayments,
@@ -59,6 +60,9 @@ router.post("/invoice", authMiddleware, createPaymentInvoice);
 
 // Create payment order (for direct payment flow)
 router.post("/order", authMiddleware, createPaymentOrder);
+
+// Create subscription payment (easy subscription flow)
+router.post("/subscribe", authMiddleware, createSubscriptionPayment);
 
 // Get user's payment history
 router.get("/my-payments", authMiddleware, getUserPayments);

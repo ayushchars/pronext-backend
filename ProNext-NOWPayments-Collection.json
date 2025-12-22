@@ -2,15 +2,17 @@
   "info": {
     "_postman_id": "pronext-nowpayments-integration",
     "name": "ProNext NOWPayments Integration",
-    "description": "Complete API collection for NOWPayments integration testing",
+    "description": "Complete API collection for NOWPayments integration testing with all payment operations and endpoints",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
     {
       "name": "Authentication",
+      "description": "User authentication endpoints for payment operations",
       "item": [
         {
           "name": "Register User",
+          "description": "Register a new user account",
           "event": [
             {
               "listen": "test",
@@ -37,7 +39,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\\n  \"fname\": \"John\",\\n  \"lname\": \"Doe\",\\n  \"email\": \"john.payment@test.com\",\\n  \"password\": \"Password123!\",\\n  \"phone\": \"9876543210\",\\n  \"address\": \"123 Test Street\",\\n  \"role\": \"User\"\\n}"
+              "raw": "{\n  \"fname\": \"John\",\n  \"lname\": \"Doe\",\n  \"email\": \"john.payment@test.com\",\n  \"password\": \"Password123!\",\n  \"phone\": \"9876543210\",\n  \"address\": \"123 Test Street\",\n  \"role\": \"User\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/api/register",
@@ -48,6 +50,7 @@
         },
         {
           "name": "Verify OTP",
+          "description": "Verify OTP and get authentication token",
           "event": [
             {
               "listen": "test",
@@ -85,259 +88,377 @@
     },
     {
       "name": "Payment Operations",
+      "description": "All NOWPayments API operations",
       "item": [
         {
-          "name": "Get Available Currencies",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/api/payments/currencies",
-              "host": ["{{base_url}}"],
-              "path": ["api", "payments", "currencies"]
-            }
-          }
-        },
-        {
-          "name": "Get Price Estimate",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\\n  \"amount\": 100,\\n  \"currency_from\": \"USD\",\\n  \"currency_to\": \"BTC\"\\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/payments/estimate",
-              "host": ["{{base_url}}"],
-              "path": ["api", "payments", "estimate"]
-            }
-          }
-        },
-        {
-          "name": "Get Minimum Amount",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/api/payments/minimum-amount?from=USD&to=BTC",
-              "host": ["{{base_url}}"],
-              "path": ["api", "payments", "minimum-amount"],
-              "query": [
-                {
-                  "key": "from",
-                  "value": "USD"
-                },
-                {
-                  "key": "to",
-                  "value": "BTC"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "Get Exchange Rate",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/api/payments/exchange-rate?from=USD&to=ETH",
-              "host": ["{{base_url}}"],
-              "path": ["api", "payments", "exchange-rate"],
-              "query": [
-                {
-                  "key": "from",
-                  "value": "USD"
-                },
-                {
-                  "key": "to",
-                  "value": "ETH"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "Create Payment Invoice",
-          "event": [
+          "name": "Public Endpoints",
+          "description": "Endpoints that do not require authentication",
+          "item": [
             {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "if (pm.response.code === 200) {",
-                  "  var jsonData = pm.response.json();",
-                  "  pm.environment.set('invoice_id', jsonData.data.invoiceId);",
-                  "  pm.environment.set('order_id', jsonData.data.orderId);",
-                  "  console.log('Invoice created. ID:', jsonData.data.invoiceId);",
-                  "  console.log('Payment URL:', jsonData.data.paymentUrl);",
-                  "}"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{auth_token}}"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\\n  \"price_amount\": 100,\\n  \"price_currency\": \"USD\",\\n  \"pay_currency\": \"BTC\",\\n  \"order_id\": \"order_{{$timestamp}}\",\\n  \"order_description\": \"Premium Subscription Payment\",\\n  \"customer_email\": \"{{user_email}}\"\\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/payments/invoice",
-              "host": ["{{base_url}}"],
-              "path": ["api", "payments", "invoice"]
-            }
-          }
-        },
-        {
-          "name": "Create Payment Order",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "if (pm.response.code === 200) {",
-                  "  var jsonData = pm.response.json();",
-                  "  pm.environment.set('payment_id', jsonData.data.paymentId);",
-                  "  console.log('Payment order created. ID:', jsonData.data.paymentId);",
-                  "  console.log('Wallet Address:', jsonData.data.walletAddress);",
-                  "}"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{auth_token}}"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\\n  \"price_amount\": 100,\\n  \"price_currency\": \"USD\",\\n  \"pay_currency\": \"BTC\",\\n  \"order_id\": \"order_{{$timestamp}}\",\\n  \"order_description\": \"Direct Payment for Services\"\\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/payments/order",
-              "host": ["{{base_url}}"],
-              "path": ["api", "payments", "order"]
-            }
-          }
-        },
-        {
-          "name": "Get Invoice Status",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{auth_token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/payments/invoice/{{invoice_id}}",
-              "host": ["{{base_url}}"],
-              "path": ["api", "payments", "invoice", "{{invoice_id}}"]
-            }
-          }
-        },
-        {
-          "name": "Get Payment Status",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{auth_token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/payments/status/{{payment_id}}",
-              "host": ["{{base_url}}"],
-              "path": ["api", "payments", "status", "{{payment_id}}"]
-            }
-          }
-        },
-        {
-          "name": "Get Payment by Order ID",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{auth_token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/payments/order/{{order_id}}",
-              "host": ["{{base_url}}"],
-              "path": ["api", "payments", "order", "{{order_id}}"]
-            }
-          }
-        },
-        {
-          "name": "Get User Payment History",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{auth_token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/payments/my-payments?page=1&limit=10",
-              "host": ["{{base_url}}"],
-              "path": ["api", "payments", "my-payments"],
-              "query": [
-                {
-                  "key": "page",
-                  "value": "1"
-                },
-                {
-                  "key": "limit",
-                  "value": "10"
+              "name": "Get Available Currencies",
+              "description": "Fetch all available cryptocurrencies and payment methods from NOWPayments",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/payments/currencies",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "payments", "currencies"]
                 }
-              ]
+              }
+            },
+            {
+              "name": "Get Price Estimate",
+              "description": "Get price estimate for cryptocurrency conversion",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\\n  \"amount\": 100,\\n  \"currency_from\": \"USD\",\\n  \"currency_to\": \"BTC\"\\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/payments/estimate",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "payments", "estimate"]
+                }
+              }
+            },
+            {
+              "name": "Get Minimum Amount",
+              "description": "Get minimum payment amount required for currency pair",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/payments/minimum-amount?from=USD&to=BTC",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "payments", "minimum-amount"],
+                  "query": [
+                    {
+                      "key": "from",
+                      "value": "USD",
+                      "description": "Source currency"
+                    },
+                    {
+                      "key": "to",
+                      "value": "BTC",
+                      "description": "Target currency"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Get Exchange Rate",
+              "description": "Get current exchange rate between two currencies",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/payments/exchange-rate?from=USD&to=ETH",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "payments", "exchange-rate"],
+                  "query": [
+                    {
+                      "key": "from",
+                      "value": "USD",
+                      "description": "Source currency"
+                    },
+                    {
+                      "key": "to",
+                      "value": "ETH",
+                      "description": "Target currency"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "IPN Webhook",
+              "description": "NOWPayments IPN callback endpoint (signature verified)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\\n  \"payment_id\": \"1234567890\",\\n  \"status\": \"finished\",\\n  \"price_amount\": 100,\\n  \"price_currency\": \"USD\",\\n  \"pay_currency\": \"BTC\",\\n  \"received_amount\": \"0.005\",\\n  \"order_id\": \"order_123\"\\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/payments/webhook",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "payments", "webhook"]
+                }
+              }
             }
-          }
+          ]
         },
         {
-          "name": "Get Payment Statistics (Admin)",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{admin_token}}"
+          "name": "Protected Endpoints",
+          "description": "Endpoints requiring authentication (Bearer token required)",
+          "item": [
+            {
+              "name": "🎯 Buy Subscription (RECOMMENDED)",
+              "description": "Easy way for users to purchase subscription (USDT TRC20 supported)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "if (pm.response.code === 200) {",
+                      "  var jsonData = pm.response.json();",
+                      "  pm.environment.set('invoice_id', jsonData.data.invoiceId);",
+                      "  pm.environment.set('subscription_tier', jsonData.data.subscriptionTier);",
+                      "  console.log('Subscription created. Tier:', jsonData.data.subscriptionTier);",
+                      "  console.log('Payment URL:', jsonData.data.paymentUrl);",
+                      "  console.log('Amount:', jsonData.data.amount, jsonData.data.currency);",
+                      "}"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"subscriptionTier\": \"Premium\",\n  \"pay_currency\": \"USDT\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/payments/subscribe",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "payments", "subscribe"]
+                }
               }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/payments/admin/statistics",
-              "host": ["{{base_url}}"],
-              "path": ["api", "payments", "admin", "statistics"]
+            },
+            {
+              "name": "Create Payment Invoice",
+              "description": "Create a new payment invoice for UI/Invoice flow",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "if (pm.response.code === 200) {",
+                      "  var jsonData = pm.response.json();",
+                      "  pm.environment.set('invoice_id', jsonData.data.invoiceId);",
+                      "  pm.environment.set('order_id', jsonData.data.orderId);",
+                      "  console.log('Invoice created. ID:', jsonData.data.invoiceId);",
+                      "  console.log('Payment URL:', jsonData.data.paymentUrl);",
+                      "}"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\\n  \"price_amount\": 100,\\n  \"price_currency\": \"USD\",\\n  \"pay_currency\": \"BTC\",\\n  \"order_id\": \"order_{{$timestamp}}\",\\n  \"order_description\": \"Premium Subscription Payment\",\\n  \"ipn_callback_url\": \"{{base_url}}/api/payments/webhook\",\\n  \"success_url\": \"{{frontend_url}}/payments/success\",\\n  \"cancel_url\": \"{{frontend_url}}/payments/cancel\",\\n  \"customer_email\": \"{{user_email}}\"\\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/payments/invoice",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "payments", "invoice"]
+                }
+              }
+            },
+            {
+              "name": "Create Payment Order",
+              "description": "Create a new payment order for direct payment flow",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "if (pm.response.code === 200) {",
+                      "  var jsonData = pm.response.json();",
+                      "  pm.environment.set('payment_id', jsonData.data.paymentId);",
+                      "  console.log('Payment order created. ID:', jsonData.data.paymentId);",
+                      "  console.log('Wallet Address:', jsonData.data.walletAddress);",
+                      "}"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\\n  \"price_amount\": 100,\\n  \"price_currency\": \"USD\",\\n  \"pay_currency\": \"BTC\",\\n  \"order_id\": \"order_{{$timestamp}}\",\\n  \"order_description\": \"Direct Payment for Services\"\\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/payments/order",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "payments", "order"]
+                }
+              }
+            },
+            {
+              "name": "Get Invoice Status",
+              "description": "Get status of a specific payment invoice by invoice ID",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/payments/invoice/{{invoice_id}}",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "payments", "invoice", "{{invoice_id}}"]
+                }
+              }
+            },
+            {
+              "name": "Get Payment Status",
+              "description": "Get status of a specific payment by payment ID",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/payments/status/{{payment_id}}",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "payments", "status", "{{payment_id}}"]
+                }
+              }
+            },
+            {
+              "name": "Get Payment by Order ID",
+              "description": "Get payment details by order ID",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/payments/order/{{order_id}}",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "payments", "order", "{{order_id}}"]
+                }
+              }
+            },
+            {
+              "name": "Get User Payment History",
+              "description": "Get all payment transactions for authenticated user",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/payments/my-payments?page=1&limit=10&status=completed",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "payments", "my-payments"],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1",
+                      "description": "Page number for pagination"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "10",
+                      "description": "Items per page"
+                    },
+                    {
+                      "key": "status",
+                      "value": "completed",
+                      "description": "Filter by payment status (optional)"
+                    }
+                  ]
+                }
+              }
             }
-          }
+          ]
+        },
+        {
+          "name": "Admin Endpoints",
+          "description": "Admin-only endpoints (requires admin authentication)",
+          "item": [
+            {
+              "name": "Get Payment Statistics",
+              "description": "Get comprehensive payment statistics and analytics (Admin only)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{admin_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/payments/admin/statistics?startDate=2024-01-01&endDate=2024-12-31",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "payments", "admin", "statistics"],
+                  "query": [
+                    {
+                      "key": "startDate",
+                      "value": "2024-01-01",
+                      "description": "Start date for statistics (optional)"
+                    },
+                    {
+                      "key": "endDate",
+                      "value": "2024-12-31",
+                      "description": "End date for statistics (optional)"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
         }
       ]
     }
@@ -349,7 +470,17 @@
       "type": "string"
     },
     {
+      "key": "frontend_url",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
       "key": "auth_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "admin_token",
       "value": "",
       "type": "string"
     },
@@ -380,11 +511,6 @@
     },
     {
       "key": "order_id",
-      "value": "",
-      "type": "string"
-    },
-    {
-      "key": "admin_token",
       "value": "",
       "type": "string"
     }
