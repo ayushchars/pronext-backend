@@ -11,7 +11,10 @@ import {
 } from "../../helpers/apiResponse.js";
 import paymentModel from "../../models/paymentModel.js";
 import { createSession, enforceSignleSession } from "../session/sessionController.js";
-    const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
+import logger from "../../helpers/logger.js";
+
+const authLogger = logger.module("AUTH_CONTROLLER");
+const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
 
 const client = twilio(
   "ACb7266ba24e021877ca84a0a7d8f40985",
@@ -22,7 +25,7 @@ const TWILIO_PHONE_NUMBER = "+14452757954";
 
 export const sendOtpSms = async (phone, otp) => {
   if (!phone) {
-    console.error(" No phone number provided to sendOtpSms()");
+    authLogger.warn("No phone number provided to sendOtpSms()");
     return;
   }
 
@@ -33,15 +36,15 @@ export const sendOtpSms = async (phone, otp) => {
       to: phone.startsWith("+") ? phone : `+91${phone}`,
     });
 
-    console.log(` OTP SMS sent successfully to: ${phone}`);
+    authLogger.notification(`OTP SMS sent successfully to: ${phone}`);
   } catch (error) {
-    console.error("Error sending OTP SMS:", error.message);
+    authLogger.error("Error sending OTP SMS", error.message);
   }
 };
 
 export const sendOtpEmail = async (email, otp) => {
   if (!email) {
-    console.error(" No email provided to sendOtpEmail()");
+    authLogger.warn("No email provided to sendOtpEmail()");
     return;
   }
 
@@ -69,23 +72,30 @@ export const sendOtpEmail = async (email, otp) => {
       `,
     });
 
-    console.log(`✅ OTP sent via Email to: ${email}`);
+    authLogger.notification(`OTP sent via Email to: ${email}`);
   } catch (error) {
-    console.error("❌ Error sending OTP Email:", error.message);
+    authLogger.error("Error sending OTP Email", error.message);
   }
 };
 export const register = async (req, res) => {
   try {
+    authLogger.start("User registration process", { module: "REGISTER" });
     const { fname, lname, email, password, phone, address, referralCode, role } = req.body;
+    
+    authLogger.debug(`Checking if user with email ${email} already exists`);
     const existingUser = await userModel.findOne({ email });
     if (existingUser) {
+      authLogger.warn(`User with email ${email} already exists`);
       return ErrorResponse(res, "User already exists");
     }
 
+    authLogger.security(`Hashing password for user ${email}`);
     const hashedPassword = await hashPassword(password);
 
     const otp = generateOTP();
-     await new userModel({
+    authLogger.otp(`Generated OTP for email: ${email}`, { otp });
+    
+    const newUser = await new userModel({
       fname,
       lname,
       email,
@@ -97,15 +107,23 @@ export const register = async (req, res) => {
       otp,
     }).save();
 
+    authLogger.success(`User ${email} registered successfully`, { userId: newUser._id });
     // await sendOtpSms(phone, otp);
     // await sendOtpEmail(email, otp);
-// 
-    return successResponse(
+
+    return successResponseWithData(
       res,
-      `User created successfully. OTP sent to your phone and email.`
+      `User created successfully. OTP: ${otp} (temporary for testing)`,
+      {
+        userId: newUser._id,
+        email: newUser.email,
+        message: "Please verify OTP to complete registration",
+        otp: otp, // TEMPORARY - for testing only
+        otpExpiresIn: "1 minute"
+      }
     );
   } catch (err) {
-    console.error(" Error in register:", err);
+    authLogger.error("Error in register", err);
     res.status(500).send({
       success: false,
       message: "Error while registering",
@@ -116,52 +134,65 @@ export const register = async (req, res) => {
 export const verifyOtp = async (req, res) => {
   try {
     const { email, otp } = req.body;
+    authLogger.start("OTP verification process", { email });
 
     if (!email || !otp) {
+      authLogger.warn("Missing email or OTP in request");
       return ErrorResponse(res, "Email and OTP are required");
     }
+    
     const user = await userModel.findOne({ email });
     if (!user) {
+      authLogger.error(`User not found for email: ${email}`);
       return notFoundResponse(res, "User not found");
     }
-      const currentTime = new Date();
+    
+    authLogger.debug("Checking OTP expiration", { email });
+    const currentTime = new Date();
     const updatedTime = new Date(user.updatedAt);
     const diffInMs = currentTime - updatedTime; 
     const diffInMinutes = diffInMs / (1000 * 60);
 
     if (diffInMinutes > 1) {
+      authLogger.warn(`OTP expired for user: ${email}`, { expiredMinutesAgo: diffInMinutes.toFixed(2) });
       return ErrorResponse(res, "OTP expired, please request a new one");
     }
 
     if (user.otp !== otp) {
+      authLogger.error(`Invalid OTP provided for user: ${email}`, { expected: user.otp, received: otp });
       return ErrorResponse(res, "Invalid OTP");
     }
 
+    authLogger.success(`OTP verified for user: ${email}`);
     user.otp = null;
     await user.save();
 
     const jwtPayload = {
       _id: user._id,
-      name: user.name,
+      fname: user.fname,
+      lname: user.lname,
       email: user.email,
       role: user.role
     };
 
+    authLogger.security(`Generating JWT token for user: ${email}`);
     const token = Jwt.sign(jwtPayload, process.env.JWT_SECRET, {
       expiresIn: "1d",
     });
 
+    authLogger.success(`User ${email} successfully verified and logged in`);
     return successResponseWithData(res, "OTP verified successfully", {
       user: {
         id: user._id,
-        name: user.name,
+        fname: user.fname,
+        lname: user.lname,
         email: user.email,
         role: user.role,
       },
       token,
     });
   } catch (error) {
-    console.error("Error verifying OTP:", error);
+    authLogger.error("Error verifying OTP", error);
     return res.status(500).send({
       success: false,
       message: "Error while verifying OTP",
@@ -172,34 +203,44 @@ export const verifyOtp = async (req, res) => {
 export const resendOtp = async (req, res) => {
   try {
     const { email } = req.body;
+    authLogger.start("OTP resend process", { email });
 
     if (!email) {
+      authLogger.warn("Missing email in request");
       return ErrorResponse(res, "Email is required");
     }
 
     const user = await userModel.findOne({ email });
     if (!user) {
+      authLogger.error(`User not found for email: ${email}`);
       return notFoundResponse(res, "User not found");
     }
 
     const newOtp = generateOTP();
+    authLogger.otp(`Generated new OTP for email: ${email}`, { otp: newOtp });
+    
     user.otp = newOtp;
     await user.save();
+    authLogger.database(`New OTP saved for user: ${email}`);
 
     if (user.Phone) {
+      authLogger.info(`Attempting to send SMS to: ${user.Phone}`);
       // await sendOtpSms(user.Phone, newOtp);
     }
-    // if (user.email) {
-    //   await sendOtpEmail(user.email, newOtp);
-    // }
+    if (user.email) {
+      authLogger.info(`Attempting to send Email to: ${user.email}`);
+      // await sendOtpEmail(user.email, newOtp);
+    }
 
+    authLogger.success(`New OTP resent successfully for user: ${email}`);
     return successResponseWithData(res, "OTP resent successfully", {
       email: user.email,
       phone: user.Phone,
-      message: "OTP has been sent to your registered phone and email.",
+      otp: newOtp, // TEMPORARY - for testing only
+      message: "New OTP has been generated. Use it within 1 minute.",
     });
   } catch (error) {
-    console.error("Error while resending OTP:", error);
+    authLogger.error("Error while resending OTP", error);
     return res.status(500).send({
       success: false,
       message: "Error while resending OTP",
@@ -212,25 +253,34 @@ export const resendOtp = async (req, res) => {
 export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
+    authLogger.start("Login attempt", { email });
 
     if (!email || !password) {
+      authLogger.warn("Missing email or password in request");
       return ErrorResponse(res, "Email and Password are required");
     }
 
+    authLogger.debug(`Looking up user with email: ${email}`);
     const user = await userModel.findOne({ email });
     if (!user) {
+      authLogger.error(`User not found for email: ${email}`);
       return notFoundResponse(res, "User not found");
     }
+    
     if (user.isSuspended) {
+      authLogger.warn(`Account suspended for user: ${email}`);
       return ErrorResponse(res, "Your account is temporarily suspended. Please contact support.");
     }
 
+    authLogger.security(`Verifying password for user: ${email}`);
     // 🔑 Verify password
     const match = await comparePassword(password, user.password);
     if (!match) {
+      authLogger.error(`Invalid password for user: ${email}`);
       return ErrorResponse(res, "Invalid password");
     }
 
+    authLogger.success(`Password verified for user: ${email}`);
     const today = new Date().toDateString();
     const lastLoginDate = user.lastLoginDate
       ? new Date(user.lastLoginDate).toDateString()
@@ -240,6 +290,7 @@ export const login = async (req, res) => {
     }
 
     if (user.dailyLoginCount >= 5) {
+      authLogger.warn(`Daily login limit exceeded for user: ${email}. Suspending account.`, { loginCount: user.dailyLoginCount });
       user.isSuspended = true;
       await user.save();
       return ErrorResponse(
@@ -251,12 +302,15 @@ export const login = async (req, res) => {
     user.lastLoginDate = new Date();
 
     const otp = generateOTP();
+    authLogger.otp(`Generated OTP for login: ${email}`, { otp });
     user.otp = otp;
     await user.save();
 
     // 🔐 Enforce single session (logout all previous sessions)
+    authLogger.info(`Enforcing single session for user: ${email}`);
     await enforceSignleSession(user._id);
 
+    authLogger.info(`Returning OTP to user: ${email} for verification`);
     // 🎫 Generate JWT token
     const jwtPayload = {
       _id: user._id,
@@ -276,9 +330,10 @@ export const login = async (req, res) => {
       // await sendOtpSms(user.phone, otp);
     }
 
+    authLogger.success(`Login successful for user: ${email}`, { loginsToday: user.dailyLoginCount });
     return successResponseWithData(
       res,
-      `Login successful. (${user.dailyLoginCount}/5 logins used today). OTP sent to your registered phone/email.`,
+      `Login successful. (${user.dailyLoginCount}/5 logins used today). OTP: ${otp} (temporary for testing)`,
       {
         user: {
           id: user._id,
@@ -288,12 +343,15 @@ export const login = async (req, res) => {
           phone: user.phone,
           loginsToday: user.dailyLoginCount,
         },
+        otp: otp, // TEMPORARY - for testing only
+        otpExpiresIn: "1 minute",
+        message: "Please verify OTP to complete login",
         token,
       }
     );
 
   } catch (error) {
-    console.error("Error during login:", error);
+    authLogger.error("Error during login", error);
     return res.status(500).send({
       success: false,
       message: "Error while logging in",
@@ -305,13 +363,15 @@ export const login = async (req, res) => {
 
 export const getAllUsersExceptLoggedIn = async (req, res) => {
   try {
+    authLogger.start("Fetching all users except logged in", { userId: req.user._id });
     const loggedInUserId = req.user._id;
 
     const users = await userModel.find({ _id: { $ne: loggedInUserId } });
+    authLogger.success(`Fetched ${users.length} users`);
 
     return successResponseWithData(res, "Users fetched successfully", users);
   } catch (error) {
-    console.error("Error occurred while fetching users:", error);
+    authLogger.error("Error occurred while fetching users", error);
     res.status(500).send({
       success: false,
       message: "Error while fetching users",
@@ -320,12 +380,14 @@ export const getAllUsersExceptLoggedIn = async (req, res) => {
 };
 export const getUserbyId = async (req, res) => {
   try {
+    authLogger.debug("Fetching user by ID", { id: req.body.id });
     const {id} = req.body;
     const users = await userModel.find({ _id:  id });
+    authLogger.success(`Fetched user with ID: ${id}`);
 
     return successResponseWithData(res, "Users fetched successfully", users);
   } catch (error) {
-    console.error("Error occurred while fetching users:", error);
+    authLogger.error("Error occurred while fetching users", error);
     res.status(500).send({
       success: false,
       message: "Error while fetching users",
@@ -335,6 +397,7 @@ export const getUserbyId = async (req, res) => {
 
 export const getUserPlatformMetrics = async (req, res) => {
   try {
+    authLogger.start("Fetching platform metrics");
     // 🔹 Time calculations
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
@@ -345,6 +408,7 @@ export const getUserPlatformMetrics = async (req, res) => {
       1
     );
 
+    authLogger.debug("Fetching metrics from database");
     // 🔹 Parallel execution (performance optimized)
     const [
       activeUsers,
@@ -398,6 +462,13 @@ export const getUserPlatformMetrics = async (req, res) => {
     const totalRevenue = totalRevenueAgg[0]?.total || 0;
     const monthlyRevenue = monthlyRevenueAgg[0]?.total || 0;
 
+    authLogger.success("Platform metrics fetched successfully", {
+      totalUsers,
+      activeUsers,
+      todaySignups,
+      totalRevenue
+    });
+
     return successResponseWithData(
       res,
       "Platform metrics fetched successfully",
@@ -415,7 +486,7 @@ export const getUserPlatformMetrics = async (req, res) => {
       }
     );
   } catch (error) {
-    console.error("Dashboard metrics error:", error);
+    authLogger.error("Dashboard metrics error", error);
     return res.status(500).json({
       success: false,
       message: "Error fetching platform metrics",
@@ -425,6 +496,7 @@ export const getUserPlatformMetrics = async (req, res) => {
 
 export const getDashboardVisualizations = async (req, res) => {
   try {
+    authLogger.start("Fetching dashboard visualizations");
     // 🔹 Time ranges
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -435,6 +507,7 @@ export const getDashboardVisualizations = async (req, res) => {
     const last30Days = new Date(today);
     last30Days.setDate(last30Days.getDate() - 29);
 
+    authLogger.debug("Aggregating visualization data");
     // 🔹 Parallel execution for performance
     const [
       payoutTrends,
@@ -485,6 +558,12 @@ export const getDashboardVisualizations = async (req, res) => {
       ]),
     ]);
 
+    authLogger.success("Dashboard visualizations fetched successfully", {
+      payoutTrendsCount: payoutTrends.length,
+      activeSubscriptions,
+      teamGrowthDays: teamGrowth.length
+    });
+
     return successResponseWithData(
       res,
       "Dashboard visualizations fetched successfully",
@@ -495,7 +574,7 @@ export const getDashboardVisualizations = async (req, res) => {
       }
     );
   } catch (error) {
-    console.error("Dashboard visualization error:", error);
+    authLogger.error("Dashboard visualization error", error);
     return res.status(500).json({
       success: false,
       message: "Error fetching dashboard visualizations",

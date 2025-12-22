@@ -6,6 +6,9 @@ import {
   notFoundResponse,
   successResponseWithData,
 } from "../../helpers/apiResponse.js";
+import logger from "../../helpers/logger.js";
+
+const userLogger = logger.module("USER_CONTROLLER");
 
 /**
  * Update User Profile
@@ -70,7 +73,7 @@ export const updateUserProfile = async (req, res) => {
       "Profile updated successfully"
     );
   } catch (error) {
-    console.error("Error updating profile:", error);
+    userLogger.error("Error updating profile", error);
     return ErrorResponse(res, error.message, 500);
   }
 };
@@ -92,7 +95,7 @@ export const getUserProfile = async (req, res) => {
 
     return successResponseWithData(res, user, "Profile retrieved successfully");
   } catch (error) {
-    console.error("Error fetching profile:", error);
+    userLogger.error("Error fetching profile", error);
     return ErrorResponse(res, error.message, 500);
   }
 };
@@ -141,7 +144,7 @@ export const changePassword = async (req, res) => {
 
     return successResponse(res, "Password changed successfully");
   } catch (error) {
-    console.error("Error changing password:", error);
+    userLogger.error("Error changing password", error);
     return ErrorResponse(res, error.message, 500);
   }
 };
@@ -184,7 +187,7 @@ export const suspendUserAccount = async (req, res) => {
       `User ${user.email} has been suspended`
     );
   } catch (error) {
-    console.error("Error suspending user:", error);
+    userLogger.error("Error suspending user", error);
     return ErrorResponse(res, error.message, 500);
   }
 };
@@ -224,7 +227,7 @@ export const reactivateUserAccount = async (req, res) => {
       `User ${user.email} has been reactivated`
     );
   } catch (error) {
-    console.error("Error reactivating user:", error);
+    userLogger.error("Error reactivating user", error);
     return ErrorResponse(res, error.message, 500);
   }
 };
@@ -267,7 +270,7 @@ export const blockUserPermanently = async (req, res) => {
       `User ${user.email} has been permanently blocked`
     );
   } catch (error) {
-    console.error("Error blocking user:", error);
+    userLogger.error("Error blocking user", error);
     return ErrorResponse(res, error.message, 500);
   }
 };
@@ -335,7 +338,7 @@ export const getAllUsers = async (req, res) => {
       "Users retrieved successfully"
     );
   } catch (error) {
-    console.error("Error fetching users:", error);
+    userLogger.error("Error fetching users", error);
     return ErrorResponse(res, error.message, 500);
   }
 };
@@ -361,7 +364,7 @@ export const getUserById = async (req, res) => {
       "User details retrieved successfully"
     );
   } catch (error) {
-    console.error("Error fetching user:", error);
+    userLogger.error("Error fetching user", error);
     return ErrorResponse(res, error.message, 500);
   }
 };
@@ -405,7 +408,7 @@ export const updateUserRole = async (req, res) => {
       `User role updated to ${role}`
     );
   } catch (error) {
-    console.error("Error updating user role:", error);
+    userLogger.error("Error updating user role", error);
     return ErrorResponse(res, error.message, 500);
   }
 };
@@ -456,7 +459,7 @@ export const getUserStatistics = async (req, res) => {
       "User statistics retrieved successfully"
     );
   } catch (error) {
-    console.error("Error fetching user statistics:", error);
+    userLogger.error("Error fetching user statistics", error);
     return ErrorResponse(res, error.message, 500);
   }
 };
@@ -496,7 +499,7 @@ export const deleteUserAccount = async (req, res) => {
 
     return successResponse(res, "Account deleted successfully");
   } catch (error) {
-    console.error("Error deleting account:", error);
+    userLogger.error("Error deleting account", error);
     return ErrorResponse(res, error.message, 500);
   }
 };
