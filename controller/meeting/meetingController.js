@@ -7,21 +7,105 @@ import {
   successResponseWithData,
 } from "../../helpers/apiResponse.js";
 import logger from "../../helpers/logger.js";
+import axios from "axios";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 const meetingLogger = logger.module("MEETING_CONTROLLER");
 
-// Simulated Zoom API integration (replace with actual Zoom SDK)
+// Zoom API Configuration
+const ZOOM_ACCOUNT_ID = process.env.ZOOM_ACCOUNT_ID;
+const ZOOM_CLIENT_ID = process.env.ZOOM_CLIENT_ID;
+const ZOOM_CLIENT_SECRET = process.env.ZOOM_CLIENT_SECRET;
+const ZOOM_API_URL = "https://zoom.us/oauth/token";
+const ZOOM_MEETINGS_API = "https://api.zoom.us/v2/users/me/meetings";
+
+let zoomAccessToken = null;
+let tokenExpiry = null;
+
+// Get Zoom OAuth access token
+const getZoomAccessToken = async () => {
+  try {
+    // Check if token is still valid
+    if (zoomAccessToken && tokenExpiry && new Date() < tokenExpiry) {
+      return zoomAccessToken;
+    }
+
+    const credentials = Buffer.from(`${ZOOM_CLIENT_ID}:${ZOOM_CLIENT_SECRET}`).toString("base64");
+    
+    const response = await axios.post(
+      ZOOM_API_URL,
+      "grant_type=account_credentials&account_id=" + ZOOM_ACCOUNT_ID,
+      {
+        headers: {
+          Authorization: `Basic ${credentials}`,
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+      }
+    );
+
+    zoomAccessToken = response.data.access_token;
+    // Token expires in 3600 seconds, refresh 5 minutes before expiry
+    tokenExpiry = new Date(Date.now() + (response.data.expires_in - 300) * 1000);
+    
+    meetingLogger.debug("Zoom access token refreshed", { expiresIn: response.data.expires_in });
+    return zoomAccessToken;
+  } catch (error) {
+    meetingLogger.error("Failed to get Zoom access token", { error: error.message });
+    throw new Error("Failed to authenticate with Zoom API");
+  }
+};
+
+// Real Zoom API integration
 const zoomClient = {
   createMeeting: async (userId, meetingData) => {
-    // In production, use zoom-nodejs SDK or fetch API
-    // For now, we generate a mock meeting ID and link
-    const meetingId = Math.floor(Math.random() * 90000000) + 10000000;
-    const link = `https://zoom.us/wc/join/${meetingId}`;
-    return {
-      id: meetingId,
-      link: link,
-      passcode: Math.floor(Math.random() * 1000000).toString(),
-    };
+    try {
+      const accessToken = await getZoomAccessToken();
+
+      const zoomPayload = {
+        topic: meetingData.title,
+        type: 2, // Scheduled meeting
+        start_time: meetingData.startTime,
+        duration: meetingData.duration,
+        timezone: "UTC",
+        agenda: meetingData.title,
+        settings: {
+          host_video: true,
+          participant_video: true,
+          join_before_host: false,
+          mute_upon_entry: false,
+          waiting_room: false,
+          watermark: false,
+          audio: "both",
+          auto_recording: "cloud",
+        },
+      };
+
+      const response = await axios.post(ZOOM_MEETINGS_API, zoomPayload, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      meetingLogger.debug("Zoom meeting created successfully", {
+        meetingId: response.data.id,
+      });
+
+      return {
+        id: response.data.id,
+        link: response.data.join_url,
+        passcode: response.data.password || "",
+        startUrl: response.data.start_url,
+      };
+    } catch (error) {
+      meetingLogger.error("Error creating Zoom meeting", {
+        error: error.message,
+        response: error.response?.data,
+      });
+      throw error;
+    }
   },
 };
 

@@ -20,11 +20,10 @@ const router = express.Router();
 
 // ==================== ADMIN ROUTES ====================
 
-// Admin meeting management
+// Admin meeting management - MORE SPECIFIC ROUTES FIRST
 router.post("/admin/meeting/create", requireSignin, isAdmin, createMeeting);
+router.get("/admin/meeting-stats", requireSignin, isAdmin, getMeetingStatistics);
 router.get("/admin/meetings", requireSignin, isAdmin, getAllMeetings);
-router.put("/admin/meeting/:meetingId", requireSignin, isAdmin, updateMeeting);
-router.delete("/admin/meeting/:meetingId", requireSignin, isAdmin, deleteMeeting);
 router.post(
   "/admin/meeting/:meetingId/share",
   requireSignin,
@@ -44,7 +43,8 @@ router.post(
   startMeeting
 );
 router.post("/admin/meeting/:meetingId/end", requireSignin, isAdmin, endMeeting);
-router.get("/admin/meeting-stats", requireSignin, isAdmin, getMeetingStatistics);
+router.put("/admin/meeting/:meetingId", requireSignin, isAdmin, updateMeeting);
+router.delete("/admin/meeting/:meetingId", requireSignin, isAdmin, deleteMeeting);
 
 // ==================== USER ROUTES ====================
 
