@@ -126,23 +126,41 @@ export const createMeeting = async (req, res) => {
       topic,
       tags,
       isRecorded,
+      isInstant,
     } = req.body;
 
-    meetingLogger.start("Creating new meeting", { title, duration, scheduledAt });
+    meetingLogger.start("Creating new meeting", { title, duration, scheduledAt, isInstant });
 
     // Validate required fields
-    if (!title || !scheduledAt || !duration) {
-      meetingLogger.warn("Missing required fields for meeting creation", { title, scheduledAt, duration });
+    if (!title || !duration) {
+      meetingLogger.warn("Missing required fields for meeting creation", { title, duration });
       return ErrorResponse(
         res,
-        "Title, scheduled time, and duration are required",
+        "Title and duration are required",
         400
       );
     }
 
-    // Validate scheduledAt is in the future
-    if (new Date(scheduledAt) <= new Date()) {
-      meetingLogger.warn("Meeting scheduled in the past", { scheduledAt });
+    // If not instant, validate scheduledAt
+    let meetingScheduledAt = scheduledAt;
+    if (!isInstant && !scheduledAt) {
+      meetingLogger.warn("Missing scheduledAt for non-instant meeting", {});
+      return ErrorResponse(
+        res,
+        "Scheduled time is required for non-instant meetings",
+        400
+      );
+    }
+
+    // If instant, set scheduledAt to now
+    if (isInstant) {
+      meetingScheduledAt = new Date().toISOString();
+      meetingLogger.debug("Creating instant meeting, setting scheduledAt to now");
+    }
+
+    // Validate scheduledAt is in the future (for scheduled meetings only)
+    if (!isInstant && new Date(meetingScheduledAt) <= new Date()) {
+      meetingLogger.warn("Meeting scheduled in the past", { scheduledAt: meetingScheduledAt });
       return ErrorResponse(res, "Meeting must be scheduled in the future", 400);
     }
 
@@ -163,13 +181,13 @@ export const createMeeting = async (req, res) => {
       }
     }
 
-    // Create Zoom meeting (mocked for now)
+    // Create Zoom meeting
     let zoomMeeting;
     try {
-      meetingLogger.debug("Creating Zoom meeting", { title });
+      meetingLogger.debug("Creating Zoom meeting", { title, isInstant });
       zoomMeeting = await zoomClient.createMeeting(req.user._id, {
         title,
-        startTime: scheduledAt,
+        startTime: meetingScheduledAt,
         duration,
       });
     } catch (error) {
@@ -181,7 +199,7 @@ export const createMeeting = async (req, res) => {
     const meeting = new meetingModel({
       title,
       description: description || "",
-      scheduledAt: new Date(scheduledAt),
+      scheduledAt: new Date(meetingScheduledAt),
       duration,
       zoomMeetingId: zoomMeeting.id.toString(),
       zoomLink: zoomMeeting.link,
@@ -198,14 +216,15 @@ export const createMeeting = async (req, res) => {
       createdBy: req.user._id,
       tags: tags || [],
       isRecorded: isRecorded || false,
+      isInstant: isInstant || false,
     });
 
     await meeting.save();
 
     return successResponseWithData(
       res,
-      meeting,
-      "Meeting created successfully"
+      "Meeting created successfully",
+      meeting
     );
   } catch (error) {
     console.error("Error creating meeting:", error);
@@ -247,6 +266,7 @@ export const getAllMeetings = async (req, res) => {
 
     return successResponseWithData(
       res,
+      "Meetings retrieved successfully",
       {
         meetings,
         pagination: {
@@ -255,8 +275,7 @@ export const getAllMeetings = async (req, res) => {
           limit: parseInt(limit),
           pages: Math.ceil(total / limit),
         },
-      },
-      "Meetings retrieved successfully"
+      }
     );
   } catch (error) {
     console.error("Error fetching meetings:", error);
@@ -467,8 +486,8 @@ export const getUpcomingMeetings = async (req, res) => {
 
     return successResponseWithData(
       res,
-      meetings,
-      "Upcoming meetings retrieved successfully"
+      "Upcoming meetings retrieved successfully",
+      meetings
     );
   } catch (error) {
     console.error("Error fetching upcoming meetings:", error);
@@ -530,14 +549,14 @@ export const joinMeeting = async (req, res) => {
 
     return successResponseWithData(
       res,
+      "Meeting link retrieved successfully",
       {
         zoomLink: meeting.zoomLink,
         zoomPasscode: meeting.zoomPasscode,
         meetingTitle: meeting.title,
         startTime: meeting.scheduledAt,
         duration: meeting.duration,
-      },
-      "Meeting link retrieved successfully"
+      }
     );
   } catch (error) {
     console.error("Error joining meeting:", error);

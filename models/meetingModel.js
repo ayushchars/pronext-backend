@@ -101,6 +101,11 @@ const MeetingSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    isInstant: {
+      type: Boolean,
+      default: false,
+      description: "Indicates if meeting was created as instant (starts immediately)",
+    },
   },
   { timestamps: true }
 );
