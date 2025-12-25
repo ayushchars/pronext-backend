@@ -168,6 +168,52 @@ export const hasSubscription = (requiredTiers = []) => {
 };
 
 /**
+ * Check if user has active subscription (not expired)
+ * Checks subscriptionStatus and subscriptionExpiryDate
+ */
+export const hasActiveSubscription = (req, res, next) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: "User not authenticated"
+      });
+    }
+
+    // Check if subscription status is active
+    if (!req.user.subscriptionStatus) {
+      return res.status(403).json({
+        success: false,
+        message: "Active subscription is required to access this resource",
+        code: "NO_SUBSCRIPTION"
+      });
+    }
+
+    // Check if subscription has expired
+    if (req.user.subscriptionExpiryDate) {
+      const expiryDate = new Date(req.user.subscriptionExpiryDate);
+      const currentDate = new Date();
+      
+      if (currentDate > expiryDate) {
+        return res.status(403).json({
+          success: false,
+          message: "Your subscription has expired. Please renew to continue.",
+          code: "SUBSCRIPTION_EXPIRED",
+          expiryDate: expiryDate
+        });
+      }
+    }
+
+    next();
+  } catch (error) {
+    return res.status(403).json({
+      success: false,
+      message: "Subscription verification failed"
+    });
+  }
+};
+
+/**
  * Optional Authentication - continues if valid, but doesn't require auth
  */
 export const optionalAuth = async (req, res, next) => {

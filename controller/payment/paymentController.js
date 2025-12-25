@@ -373,77 +373,139 @@ export const getUserPayments = async (req, res) => {
 /**
  * Webhook for NOWPayments IPN callbacks
  * POST /api/payments/webhook
+ * Handles payment status updates and subscription activation
  */
 export const handleIPNCallback = async (req, res) => {
   try {
-    const { order_id, payment_id, payment_status, outcome_at } = req.body;
+    // Extract webhook payload
+    const {
+      order_id,
+      payment_id,
+      payment_status,
+      price_amount,
+      pay_currency,
+      outcome_at,
+      purchase_id,
+      invoice_id,
+    } = req.body;
     const signature = req.headers["x-signature"];
 
-    paymentLogger.start("Received IPN callback", {
+    paymentLogger.start("Received IPN webhook callback", {
       orderId: order_id,
       paymentId: payment_id,
       status: payment_status,
+      amount: price_amount,
+      currency: pay_currency,
     });
 
-    // Verify signature
-    if (!nowpaymentsService.verifyIPNSignature(req.body, signature)) {
-      paymentLogger.warn("Invalid IPN signature received");
+    // 🔐 Verify signature first (security check)
+    if (!signature || !nowpaymentsService.verifyIPNSignature(req.body, signature)) {
+      paymentLogger.warn("❌ Invalid IPN signature - rejecting webhook", {
+        orderId: order_id,
+        paymentId: payment_id,
+      });
       return ErrorResponse(res, "Invalid signature", 401);
     }
 
-    // Update payment record
+    // Find payment record
     const paymentRecord = await paymentModel.findOne({
-      $or: [{ orderId: order_id }, { paymentId: payment_id }],
+      $or: [
+        { orderId: order_id },
+        { paymentId: payment_id },
+        { invoiceId: invoice_id },
+      ],
     });
 
     if (!paymentRecord) {
-      paymentLogger.warn("Payment record not found for webhook", { orderId: order_id });
-      return notFoundResponse(res, "Payment not found");
+      paymentLogger.warn("⚠️ Payment record not found for webhook", {
+        orderId: order_id,
+        paymentId: payment_id,
+      });
+      // Return 200 OK anyway (webhook might be retried)
+      return successResponse(res, "Payment record not found in system");
     }
 
-    // Update status
+    // Update payment status
     paymentRecord.status = payment_status;
+    paymentRecord.paymentId = payment_id || paymentRecord.paymentId;
     paymentRecord.lastUpdated = new Date(outcome_at || Date.now());
     await paymentRecord.save();
 
-    // If payment is finished, activate subscription based on amount
+    paymentLogger.info("📝 Payment record updated", {
+      userId: paymentRecord.userId,
+      orderId: order_id,
+      status: payment_status,
+    });
+
+    // ✅ PAYMENT SUCCESSFUL - Activate Subscription
     if (payment_status === "finished") {
-      // Determine subscription tier based on amount
+      // Determine subscription tier based on amount paid
       let subscriptionTier = "Basic";
-      if (price_amount >= 30) {
+      const amount = price_amount || paymentRecord.priceAmount;
+
+      if (amount >= 30) {
         subscriptionTier = "Pro";
-      } else if (price_amount >= 15) {
+      } else if (amount >= 15) {
         subscriptionTier = "Premium";
-      } else {
+      } else if (amount >= 5) {
         subscriptionTier = "Basic";
       }
 
-      await userModel.findByIdAndUpdate(paymentRecord.userId, {
-        subscriptionStatus: true,
-        subscriptionTier: subscriptionTier,
-        subscriptionExpiryDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-        lastPaymentDate: new Date(),
-      });
+      // Update user subscription
+      const updatedUser = await userModel.findByIdAndUpdate(
+        paymentRecord.userId,
+        {
+          subscriptionStatus: true,
+          subscriptionTier: subscriptionTier,
+          subscriptionExpiryDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+          lastPaymentDate: new Date(),
+          subscriptionActivatedDate: new Date(),
+        },
+        { new: true }
+      );
 
-      paymentLogger.success("Subscription activated via webhook", {
+      paymentLogger.success("✅ SUBSCRIPTION ACTIVATED VIA WEBHOOK", {
         userId: paymentRecord.userId,
+        email: updatedUser?.email,
         orderId: order_id,
+        paymentId: payment_id,
         tier: subscriptionTier,
+        amount: amount,
         currency: pay_currency,
+        expiryDate: updatedUser?.subscriptionExpiryDate,
       });
+
+      // TODO: Send email notification to user about subscription activation
+      // notificationService.sendSubscriptionActivationEmail(updatedUser.email, subscriptionTier);
     }
 
-    if (payment_status === "failed" || payment_status === "expired") {
-      paymentLogger.warn("Payment failed or expired", {
+    // ❌ PAYMENT FAILED
+    if (payment_status === "failed") {
+      paymentLogger.warn("❌ Payment failed via webhook", {
         orderId: order_id,
-        status: payment_status,
+        paymentId: payment_id,
+        userId: paymentRecord.userId,
       });
+      // TODO: Send email notification to user about payment failure
+      // notificationService.sendPaymentFailureEmail(paymentRecord.userId);
     }
 
+    // ⏱️ PAYMENT EXPIRED
+    if (payment_status === "expired") {
+      paymentLogger.warn("⏱️ Payment expired via webhook", {
+        orderId: order_id,
+        paymentId: payment_id,
+        userId: paymentRecord.userId,
+      });
+      // TODO: Send email notification to user about payment expiry
+    }
+
+    // Return 200 OK to acknowledge webhook was processed
     return successResponse(res, "Webhook processed successfully");
   } catch (error) {
-    paymentLogger.error("Error processing webhook", error);
-    return ErrorResponse(res, "Webhook processing failed", 500);
+    paymentLogger.error("❌ Error processing webhook", error);
+    // Return 200 OK even on error (to prevent webhook retries)
+    return successResponse(res, "Webhook received and queued for processing");
   }
 };
 

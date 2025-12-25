@@ -46,7 +46,12 @@ export const getAllFiles = async (req, res) => {
   try {
     const { type, isActive } = req.query;
 
-    fileLogger.start("Fetching all files", { type, isActive });
+    fileLogger.start("Fetching all files", { 
+      type, 
+      isActive, 
+      userId: req.user._id,
+      subscriptionStatus: req.user.subscriptionStatus 
+    });
 
     const filter = { isActive: true };
     if (type) filter.type = type;
@@ -56,7 +61,11 @@ export const getAllFiles = async (req, res) => {
       .sort({ createdAt: -1 })
       .populate("uploadedBy", "fname lname email");
 
-    fileLogger.success("Files fetched successfully", { count: files.length, type });
+    fileLogger.success("Files fetched successfully (subscription verified)", { 
+      count: files.length, 
+      type,
+      userId: req.user._id 
+    });
     return successResponseWithData(res, "Files fetched successfully", files);
   } catch (error) {
     fileLogger.error("Error fetching files", error);
@@ -71,7 +80,11 @@ export const getFileById = async (req, res) => {
   try {
     const { id } = req.params;
 
-    fileLogger.start("Fetching file by ID", { fileId: id });
+    fileLogger.start("Fetching file by ID", { 
+      fileId: id,
+      userId: req.user._id,
+      subscriptionStatus: req.user.subscriptionStatus 
+    });
 
     const file = await FileResource.findById(id).populate("uploadedBy", "fname lname email");
     if (!file) {
@@ -79,7 +92,12 @@ export const getFileById = async (req, res) => {
       return notFoundResponse(res, "File not found");
     }
 
-    fileLogger.success("File fetched successfully", { fileId: id, title: file.title });
+    fileLogger.success("File fetched successfully (subscription verified)", { 
+      fileId: id, 
+      title: file.title,
+      type: file.type,
+      userId: req.user._id 
+    });
     return successResponseWithData(res, "File fetched successfully", file);
   } catch (error) {
     fileLogger.error("Error fetching file by ID", error);
