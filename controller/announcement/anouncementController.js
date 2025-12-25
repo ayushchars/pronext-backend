@@ -70,8 +70,8 @@ export const createAnnouncement = async (req, res) => {
     announcementLogger.success("Announcement created successfully", { announcementId: announcement._id, type });
     return successResponseWithData(
       res,
-      announcement,
-      "Announcement created successfully"
+      "Announcement created successfully",
+      announcement
     );
   } catch (error) {
     announcementLogger.error("Error creating announcement", error);
@@ -140,6 +140,7 @@ export const getAllAnnouncements = async (req, res) => {
 
     return successResponseWithData(
       res,
+      "Announcements retrieved successfully",
       {
         announcements,
         pagination: {
@@ -148,8 +149,7 @@ export const getAllAnnouncements = async (req, res) => {
           limit: parseInt(limit),
           pages: Math.ceil(total / limit),
         },
-      },
-      "Announcements retrieved successfully"
+      }
     );
   } catch (error) {
     console.error("Get announcements error:", error);
@@ -177,8 +177,8 @@ export const getAnnouncementById = async (req, res) => {
 
     return successResponseWithData(
       res,
-      announcement,
-      "Announcement retrieved successfully"
+      "Announcement retrieved successfully",
+      announcement
     );
   } catch (error) {
     console.error("Get announcement by id error:", error);
@@ -221,8 +221,8 @@ export const updateAnnouncement = async (req, res) => {
 
     return successResponseWithData(
       res,
-      announcement,
-      "Announcement updated successfully"
+      "Announcement updated successfully",
+      announcement
     );
   } catch (error) {
     console.error("Update announcement error:", error);
@@ -292,6 +292,7 @@ export const getUserAnnouncements = async (req, res) => {
 
     return successResponseWithData(
       res,
+      "User announcements retrieved successfully",
       {
         announcements,
         pagination: {
@@ -300,8 +301,7 @@ export const getUserAnnouncements = async (req, res) => {
           limit: parseInt(limit),
           pages: Math.ceil(total / limit),
         },
-      },
-      "User announcements retrieved successfully"
+      }
     );
   } catch (error) {
     console.error("Get user announcements error:", error);
@@ -329,8 +329,8 @@ export const trackAnnouncementClick = async (req, res) => {
 
     return successResponseWithData(
       res,
-      announcement,
-      "Click tracked successfully"
+      "Click tracked successfully",
+      announcement
     );
   } catch (error) {
     console.error("Track click error:", error);
@@ -369,6 +369,7 @@ export const getAnnouncementsByType = async (req, res) => {
 
     return successResponseWithData(
       res,
+      `${type} announcements retrieved successfully`,
       {
         announcements,
         pagination: {
@@ -377,8 +378,7 @@ export const getAnnouncementsByType = async (req, res) => {
           limit: parseInt(limit),
           pages: Math.ceil(total / limit),
         },
-      },
-      `${type} announcements retrieved successfully`
+      }
     );
   } catch (error) {
     console.error("Get announcements by type error:", error);
@@ -417,6 +417,7 @@ export const getAnnouncementsByFlag = async (req, res) => {
 
     return successResponseWithData(
       res,
+      `${flag} announcements retrieved successfully`,
       {
         announcements,
         pagination: {
@@ -425,8 +426,7 @@ export const getAnnouncementsByFlag = async (req, res) => {
           limit: parseInt(limit),
           pages: Math.ceil(total / limit),
         },
-      },
-      `${flag} announcements retrieved successfully`
+      }
     );
   } catch (error) {
     console.error("Get announcements by flag error:", error);
@@ -484,12 +484,12 @@ export const getAnnouncementStats = async (req, res) => {
 
     return successResponseWithData(
       res,
+      "Announcement statistics retrieved successfully",
       {
         byType: stats,
         byFlag: flagStats,
         totalActive: totalAnnouncements,
-      },
-      "Announcement statistics retrieved successfully"
+      }
     );
   } catch (error) {
     console.error("Get stats error:", error);
@@ -520,8 +520,8 @@ export const bulkUpdateStatus = async (req, res) => {
 
     return successResponseWithData(
       res,
-      result,
-      `${result.modifiedCount} announcements updated`
+      `${result.modifiedCount} announcements updated`,
+      result
     );
   } catch (error) {
     console.error("Bulk update error:", error);

@@ -64,7 +64,7 @@ app.use("/api", sessionRoute);
 app.use("/api", userRoute);
 app.use("/api", meetingRoute);
 app.use("/api/admin/analytics", analyticsRoute);
-app.use("/api/announcement", announcement);
+app.use("/api", announcement);
 app.use("/api/upload", file);
 app.use("/api/payments", paymentRoute);
 

@@ -291,7 +291,8 @@ export const login = async (req, res) => {
       user.dailyLoginCount = 0;
     }
 
-    if (user.dailyLoginCount >= 5) {
+    // Skip daily login limit check for Admin users
+    if (user.role !== "Admin" && user.dailyLoginCount >= 5) {
       authLogger.warn(`Daily login limit exceeded for user: ${email}. Suspending account.`, { loginCount: user.dailyLoginCount });
       user.isSuspended = true;
       await user.save();
@@ -300,7 +301,11 @@ export const login = async (req, res) => {
         "Daily login limit exceeded. Your account has been temporarily suspended. Please contact support."
       );
     }
-    user.dailyLoginCount += 1;
+    
+    // Increment login count only for non-admin users
+    if (user.role !== "Admin") {
+      user.dailyLoginCount += 1;
+    }
     user.lastLoginDate = new Date();
 
     const otp = generateOTP();
