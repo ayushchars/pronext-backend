@@ -8,7 +8,7 @@
     "start": "node app.js",
     "dev": "nodemon app.js",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
-    "build": "mkdir -p build && cp -R * build/",
+    "build": "echo 'No build needed'",
     "lint": "eslint .",
     "debug": "node --inspect app.js",
     "debug-brk": "node --inspect-brk app.js"
