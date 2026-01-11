@@ -28,14 +28,31 @@ connectDB();
 
 const app = express();
 const httpServer = createServer(app);
+
+// Get all allowed origins from environment
+const getAllowedOrigins = () => {
+  const origins = [
+    "http://localhost:3000",
+    "http://localhost:5173",
+    "http://localhost:5174",
+  ];
+  
+  if (process.env.FRONTEND_URL) {
+    origins.push(...process.env.FRONTEND_URL.split(',').map(url => url.trim()));
+  }
+  if (process.env.FRONTEND_USER_URL) {
+    origins.push(process.env.FRONTEND_USER_URL);
+  }
+  if (process.env.FRONTEND_ADMIN_URL) {
+    origins.push(process.env.FRONTEND_ADMIN_URL);
+  }
+  
+  return origins.filter(Boolean);
+};
+
 const io = new Server(httpServer, {
   cors: {
-    origin: [
-      "http://localhost:3000",
-      "http://localhost:5173",
-      "http://localhost:5174",
-      process.env.FRONTEND_URL
-    ].filter(Boolean),
+    origin: getAllowedOrigins(),
     methods: ["GET", "POST"],
     credentials: true,
   },
@@ -60,12 +77,7 @@ app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
 // CORS
 app.use(cors({
-  origin: [
-    "http://localhost:3000",
-    "http://localhost:5173",
-    "http://localhost:5174",
-    process.env.FRONTEND_URL
-  ].filter(Boolean),
+  origin: getAllowedOrigins(),
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
