@@ -76,8 +76,8 @@ export const updateUserProfile = async (req, res) => {
     userLogger.success("User profile updated successfully", { userId });
     return successResponseWithData(
       res,
-      updatedUser,
-      "Profile updated successfully"
+      "Profile updated successfully",
+      updatedUser
     );
   } catch (error) {
     userLogger.error("Error updating profile", error);
@@ -100,7 +100,7 @@ export const getUserProfile = async (req, res) => {
       return notFoundResponse(res, "User not found");
     }
 
-    return successResponseWithData(res, user, "Profile retrieved successfully");
+    return successResponseWithData(res, "Profile retrieved successfully", user);
   } catch (error) {
     userLogger.error("Error fetching profile", error);
     return ErrorResponse(res, error.message, 500);
