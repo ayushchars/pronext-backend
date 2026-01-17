@@ -1121,13 +1121,16 @@ export const applyReferralCode = async (userId, code) => {
     }
 
     const existingMember = await TeamMember.findOne({ userId });
-    if (existingMember) {
+    
+    // Check if user already has a sponsor (already part of a team)
+    if (existingMember && existingMember.sponsorId) {
       return {
         success: false,
-        message: "User is already part of a team",
+        message: "You are already part of a team. Cannot join another team.",
       };
     }
 
+    // Validate the referral code
     const referrerMember = await TeamMember.findOne({ referralCode: code });
 
     if (!referrerMember) {
@@ -1144,17 +1147,42 @@ export const applyReferralCode = async (userId, code) => {
       };
     }
 
-    const newReferralCode = generateReferralCode(userId);
-    const newMember = new TeamMember({
-      userId,
-      sponsorId: referrerMember._id,
-      referralCode: newReferralCode,
-      isActive: true,
-    });
+    // Check if user is trying to use their own referral code
+    if (existingMember && existingMember.referralCode === code) {
+      return {
+        success: false,
+        message: "You cannot use your own referral code",
+      };
+    }
 
-    referrerMember.teamMembers.push(userId);
-    referrerMember.directCount = referrerMember.teamMembers.length;
+    let teamMember;
+    let isNewMember = false;
 
+    // If user already has a TeamMember record (from init-membership) but no sponsor
+    if (existingMember) {
+      teamLogger.info("Updating existing member with sponsor", { userId, code });
+      existingMember.sponsorId = referrerMember._id;
+      teamMember = existingMember;
+    } else {
+      // Create new team member
+      teamLogger.info("Creating new team member with sponsor", { userId, code });
+      const newReferralCode = generateReferralCode(userId);
+      teamMember = new TeamMember({
+        userId,
+        sponsorId: referrerMember._id,
+        referralCode: newReferralCode,
+        isActive: true,
+      });
+      isNewMember = true;
+    }
+
+    // Add user to referrer's team
+    if (!referrerMember.teamMembers.includes(userId)) {
+      referrerMember.teamMembers.push(userId);
+      referrerMember.directCount = referrerMember.teamMembers.length;
+    }
+
+    // Create referral record
     const referral = new Referral({
       referrerId: referrerMember.userId,
       referredUserId: userId,
@@ -1163,10 +1191,15 @@ export const applyReferralCode = async (userId, code) => {
       approvalDate: new Date(),
     });
 
-    const commission = new Commission({ userId });
+    // Create or get commission record
+    let commission = await Commission.findOne({ userId });
+    if (!commission) {
+      commission = new Commission({ userId });
+    }
 
+    // Save all changes
     await Promise.all([
-      newMember.save(),
+      teamMember.save(),
       referrerMember.save(),
       referral.save(),
       commission.save(),
@@ -1184,13 +1217,14 @@ export const applyReferralCode = async (userId, code) => {
       code,
       userId,
       sponsorId: referrerMember.userId,
+      isNewMember,
     });
 
     return {
       success: true,
       message: "Successfully joined team using referral code",
       data: {
-        teamMember: newMember,
+        teamMember,
         referrerInfo: {
           id: referrerMember.userId,
           level: referrerMember.level,
@@ -1313,13 +1347,15 @@ export const getMyDownlineStructure = async (userId, depth = 5) => {
 
       const member = await TeamMember.findOne({ userId })
         .populate("userId", "fname lname email")
-        .populate("teamMembers");
+        .populate("teamMembers", "fname lname email");
 
       if (!member) return null;
 
       const teamMembersArray = [];
-      for (const memberId of member.teamMembers) {
-        const child = await buildHierarchy(memberId, currentDepth + 1);
+      for (const teamMemberUser of member.teamMembers) {
+        // teamMemberUser is a populated User object, extract the _id
+        const childUserId = teamMemberUser._id || teamMemberUser;
+        const child = await buildHierarchy(childUserId, currentDepth + 1);
         if (child) {
           teamMembersArray.push(child);
         }
@@ -1328,6 +1364,7 @@ export const getMyDownlineStructure = async (userId, depth = 5) => {
       return {
         _id: member._id,
         userId: member.userId,
+        referralCode: member.referralCode,
         directCount: member.directCount,
         level: member.level,
         totalEarnings: member.totalEarnings,
@@ -1363,20 +1400,26 @@ export const getDownlineStructure = async (userId, depth = 5) => {
 
       const member = await TeamMember.findOne({ userId })
         .populate("userId", "fname lname email")
-        .populate("teamMembers");
+        .populate("teamMembers", "fname lname email");
 
       if (!member) return null;
 
       const children = await Promise.all(
-        member.teamMembers.map((memberId) => buildHierarchy(memberId, currentDepth + 1))
+        member.teamMembers.map((teamMemberUser) => {
+          // Extract userId from populated User object
+          const childUserId = teamMemberUser._id || teamMemberUser;
+          return buildHierarchy(childUserId, currentDepth + 1);
+        })
       );
 
       return {
         _id: member._id,
         userId: member.userId,
+        referralCode: member.referralCode,
         directCount: member.directCount,
         level: member.level,
         totalEarnings: member.totalEarnings,
+        totalDownline: member.totalDownline || 0,
         children: children.filter((child) => child !== null),
       };
     };
