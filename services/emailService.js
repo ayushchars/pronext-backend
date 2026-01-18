@@ -3,17 +3,28 @@ import logger from '../helpers/logger.js';
 
 const emailLogger = logger.module('EMAIL_SERVICE');
 
-// Initialize SendGrid with API key from environment
-const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY;
-const FROM_EMAIL = process.env.FROM_EMAIL || 'noreply@pronext.com';
-const FROM_NAME = process.env.FROM_NAME || 'ProNext Platform';
+// Initialize SendGrid - this will be called after dotenv loads
+let isInitialized = false;
 
-if (SENDGRID_API_KEY) {
-  sgMail.setApiKey(SENDGRID_API_KEY);
-  emailLogger.success('SendGrid initialized successfully');
-} else {
-  emailLogger.warn('SendGrid API key not found. Email functionality will not work.');
-}
+const initializeSendGrid = () => {
+  if (isInitialized) return;
+  
+  const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY;
+  
+  if (SENDGRID_API_KEY) {
+    sgMail.setApiKey(SENDGRID_API_KEY);
+    emailLogger.success('SendGrid initialized successfully');
+    isInitialized = true;
+  } else {
+    emailLogger.warn('SendGrid API key not found. Email functionality will not work.');
+  }
+};
+
+// Get config values
+const getConfig = () => ({
+  FROM_EMAIL: process.env.FROM_EMAIL || 'noreply@pronext.com',
+  FROM_NAME: process.env.FROM_NAME || 'ProNext Platform'
+});
 
 /**
  * Send OTP Email using SendGrid
@@ -23,15 +34,20 @@ if (SENDGRID_API_KEY) {
  * @returns {Promise<boolean>} - Success status
  */
 export const sendOtpEmail = async (email, otp, purpose = 'login') => {
+  // Initialize SendGrid on first use
+  initializeSendGrid();
+  
   if (!email) {
     emailLogger.warn('No email provided to sendOtpEmail()');
     return false;
   }
 
-  if (!SENDGRID_API_KEY) {
+  if (!process.env.SENDGRID_API_KEY) {
     emailLogger.error('Cannot send email: SendGrid API key not configured');
     return false;
   }
+
+  const { FROM_EMAIL, FROM_NAME } = getConfig();
 
   try {
     let subject = 'Your OTP Code';
@@ -203,10 +219,14 @@ export const sendOtpEmail = async (email, otp, purpose = 'login') => {
  * @returns {Promise<boolean>} - Success status
  */
 export const sendWelcomeEmail = async (email, userName) => {
-  if (!email || !SENDGRID_API_KEY) {
+  initializeSendGrid();
+  
+  if (!email || !process.env.SENDGRID_API_KEY) {
     emailLogger.warn('Cannot send welcome email: Missing email or API key');
     return false;
   }
+
+  const { FROM_EMAIL, FROM_NAME } = getConfig();
 
   try {
     const msg = {
@@ -264,9 +284,13 @@ export const sendWelcomeEmail = async (email, userName) => {
  * @returns {Promise<boolean>} - Success status
  */
 export const sendPasswordResetConfirmation = async (email) => {
-  if (!email || !SENDGRID_API_KEY) {
+  initializeSendGrid();
+  
+  if (!email || !process.env.SENDGRID_API_KEY) {
     return false;
   }
+
+  const { FROM_EMAIL, FROM_NAME } = getConfig();
 
   try {
     const msg = {
