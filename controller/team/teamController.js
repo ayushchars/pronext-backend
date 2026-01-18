@@ -1328,7 +1328,7 @@ export const getMyReferrals = async (userId, page = 1, limit = 10) => {
 // Get downline structure for current user
 export const getMyDownlineStructure = async (userId, depth = 5) => {
   try {
-    teamLogger.start("Getting downline structure for current user", { userId, depth });
+    teamLogger.start("Getting complete hierarchy structure for current user", { userId, depth });
 
     const currentMember = await TeamMember.findOne({ userId }).populate(
       "userId",
@@ -1342,10 +1342,54 @@ export const getMyDownlineStructure = async (userId, depth = 5) => {
       };
     }
 
-    const buildHierarchy = async (userId, currentDepth = 0) => {
-      if (currentDepth >= depth) return null;
+    // Find the root of the tree by traversing up the sponsor chain
+    const findRoot = async (startUserId) => {
+      let currentUserId = startUserId;
+      let visited = new Set();
+      let maxIterations = 100;
+      let iterations = 0;
+      
+      while (currentUserId && iterations < maxIterations) {
+        iterations++;
+        const currentUserIdStr = currentUserId.toString();
+        
+        if (visited.has(currentUserIdStr)) {
+          teamLogger.warn("Cycle detected in sponsor chain", { userId: currentUserIdStr });
+          return currentUserId;
+        }
+        
+        visited.add(currentUserIdStr);
+        const member = await TeamMember.findOne({ userId: currentUserId });
+        
+        if (!member) {
+          teamLogger.warn("Member not found in chain", { userId: currentUserIdStr });
+          return currentUserId;
+        }
+        
+        if (!member.sponsorId) {
+          teamLogger.debug("Root found - no sponsor", { rootUserId: currentUserId });
+          return currentUserId;
+        }
+        
+        // sponsorId is a TeamMember reference, get its userId
+        const sponsorMember = await TeamMember.findById(member.sponsorId);
+        if (!sponsorMember) {
+          teamLogger.debug("Root found - sponsor reference broken", { rootUserId: currentUserId });
+          return currentUserId;
+        }
+        
+        currentUserId = sponsorMember.userId;
+      }
+      
+      teamLogger.warn("Max iterations reached in findRoot", { startUserId });
+      return startUserId;
+    };
 
-      const member = await TeamMember.findOne({ userId })
+    // Build the complete hierarchy from root
+    const buildCompleteHierarchy = async (buildUserId, currentDepth = 0, maxDepth = 10, targetUserId) => {
+      if (currentDepth >= maxDepth) return null;
+
+      const member = await TeamMember.findOne({ userId: buildUserId })
         .populate("userId", "fname lname email")
         .populate("teamMembers", "fname lname email");
 
@@ -1353,13 +1397,15 @@ export const getMyDownlineStructure = async (userId, depth = 5) => {
 
       const teamMembersArray = [];
       for (const teamMemberUser of member.teamMembers) {
-        // teamMemberUser is a populated User object, extract the _id
         const childUserId = teamMemberUser._id || teamMemberUser;
-        const child = await buildHierarchy(childUserId, currentDepth + 1);
+        const child = await buildCompleteHierarchy(childUserId, currentDepth + 1, maxDepth, targetUserId);
         if (child) {
           teamMembersArray.push(child);
         }
       }
+
+      const userIdStr = member.userId._id ? member.userId._id.toString() : member.userId.toString();
+      const targetUserIdStr = targetUserId.toString();
 
       return {
         _id: member._id,
@@ -1370,19 +1416,27 @@ export const getMyDownlineStructure = async (userId, depth = 5) => {
         totalEarnings: member.totalEarnings,
         totalDownline: member.totalDownline || 0,
         teamMembers: teamMembersArray,
+        isCurrentUser: userIdStr === targetUserIdStr, // Mark current user
       };
     };
 
-    const hierarchy = await buildHierarchy(userId);
+    // Get root user ID by traversing up
+    const rootUserId = await findRoot(userId);
+    
+    teamLogger.debug("Root user found", { rootUserId, startingUser: userId });
+    
+    // Build complete hierarchy from root
+    const hierarchy = await buildCompleteHierarchy(rootUserId, 0, 10, userId);
 
-    teamLogger.success("Downline structure retrieved for current user", { userId });
+    teamLogger.success("Complete hierarchy structure retrieved for current user", { userId, rootUserId });
 
     return {
       success: true,
       data: hierarchy,
+      currentUserId: userId.toString(),
     };
   } catch (error) {
-    teamLogger.error("Error getting downline structure for current user", error);
+    teamLogger.error("Error getting complete hierarchy structure for current user", error);
     return {
       success: false,
       message: error.message,
@@ -1390,15 +1444,68 @@ export const getMyDownlineStructure = async (userId, depth = 5) => {
   }
 };
 
-// Get downline structure for any user
+// Get downline structure for any user (Admin/Public view)
 export const getDownlineStructure = async (userId, depth = 5) => {
   try {
-    teamLogger.start("Getting downline structure", { userId, depth });
+    teamLogger.start("Getting complete hierarchy structure", { userId, depth });
 
-    const buildHierarchy = async (userId, currentDepth = 0) => {
-      if (currentDepth >= depth) return null;
+    const targetMember = await TeamMember.findOne({ userId })
+      .populate("userId", "fname lname email");
 
-      const member = await TeamMember.findOne({ userId })
+    if (!targetMember) {
+      return {
+        success: false,
+        message: "Team member not found",
+      };
+    }
+
+    // Find the root of the tree by traversing up the sponsor chain
+    const findRoot = async (startUserId) => {
+      let currentUserId = startUserId;
+      let visited = new Set();
+      let maxIterations = 100;
+      let iterations = 0;
+      
+      while (currentUserId && iterations < maxIterations) {
+        iterations++;
+        const currentUserIdStr = currentUserId.toString();
+        
+        if (visited.has(currentUserIdStr)) {
+          teamLogger.warn("Cycle detected in sponsor chain", { userId: currentUserIdStr });
+          return currentUserId;
+        }
+        
+        visited.add(currentUserIdStr);
+        const member = await TeamMember.findOne({ userId: currentUserId });
+        
+        if (!member) {
+          teamLogger.warn("Member not found in chain", { userId: currentUserIdStr });
+          return currentUserId;
+        }
+        
+        if (!member.sponsorId) {
+          teamLogger.debug("Root found - no sponsor", { rootUserId: currentUserId });
+          return currentUserId;
+        }
+        
+        // sponsorId is a TeamMember reference, get its userId
+        const sponsorMember = await TeamMember.findById(member.sponsorId);
+        if (!sponsorMember) {
+          teamLogger.debug("Root found - sponsor reference broken", { rootUserId: currentUserId });
+          return currentUserId;
+        }
+        
+        currentUserId = sponsorMember.userId;
+      }
+      
+      teamLogger.warn("Max iterations reached in findRoot", { startUserId });
+      return startUserId;
+    };
+
+    const buildHierarchy = async (buildUserId, currentDepth = 0, maxDepth = 10, targetUserId) => {
+      if (currentDepth >= maxDepth) return null;
+
+      const member = await TeamMember.findOne({ userId: buildUserId })
         .populate("userId", "fname lname email")
         .populate("teamMembers", "fname lname email");
 
@@ -1408,9 +1515,12 @@ export const getDownlineStructure = async (userId, depth = 5) => {
         member.teamMembers.map((teamMemberUser) => {
           // Extract userId from populated User object
           const childUserId = teamMemberUser._id || teamMemberUser;
-          return buildHierarchy(childUserId, currentDepth + 1);
+          return buildHierarchy(childUserId, currentDepth + 1, maxDepth, targetUserId);
         })
       );
+
+      const userIdStr = member.userId._id ? member.userId._id.toString() : member.userId.toString();
+      const targetUserIdStr = targetUserId.toString();
 
       return {
         _id: member._id,
@@ -1421,28 +1531,29 @@ export const getDownlineStructure = async (userId, depth = 5) => {
         totalEarnings: member.totalEarnings,
         totalDownline: member.totalDownline || 0,
         children: children.filter((child) => child !== null),
+        isTargetUser: userIdStr === targetUserIdStr, // Mark target user
       };
     };
 
-    const hierarchy = await buildHierarchy(userId);
+    // Get root user ID by traversing up
+    const rootUserId = await findRoot(userId);
+    
+    teamLogger.debug("Root user found", { rootUserId, startingUser: userId });
+    
+    // Build complete hierarchy from root
+    const hierarchy = await buildHierarchy(rootUserId, 0, 10, userId);
 
-    if (!hierarchy) {
-      return {
-        success: false,
-        message: "Team member not found",
-      };
-    }
-
-    teamLogger.success("Downline structure retrieved", { userId });
+    teamLogger.success("Complete hierarchy structure retrieved", { userId, rootUserId });
 
     return {
       success: true,
       data: {
         hierarchy,
+        targetUserId: userId.toString(),
       },
     };
   } catch (error) {
-    teamLogger.error("Error getting downline structure", error);
+    teamLogger.error("Error getting complete hierarchy structure", error);
     return {
       success: false,
       message: error.message,
