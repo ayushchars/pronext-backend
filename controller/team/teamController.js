@@ -1247,14 +1247,27 @@ export const getMyReferralCode = async (userId) => {
     teamLogger.start("Getting user referral code", { userId });
 
     const teamMember = await TeamMember.findOne({ userId })
-      .populate("userId", "fname lname email")
-      .populate("sponsorId", "fname lname");
+      .populate("userId", "fname lname email");
 
     if (!teamMember) {
       return {
         success: false,
         message: "Team member not found. Please create team membership first.",
       };
+    }
+
+    // Get sponsor information if sponsorId exists
+    let sponsorInfo = null;
+    if (teamMember.sponsorId) {
+      const sponsorMember = await TeamMember.findById(teamMember.sponsorId)
+        .populate("userId", "fname lname email");
+      
+      if (sponsorMember && sponsorMember.userId) {
+        sponsorInfo = {
+          name: `${sponsorMember.userId.fname} ${sponsorMember.userId.lname}`,
+          email: sponsorMember.userId.email,
+        };
+      }
     }
 
     teamLogger.success("Referral code retrieved", { userId, code: teamMember.referralCode });
@@ -1274,11 +1287,7 @@ export const getMyReferralCode = async (userId) => {
           level: teamMember.level,
           totalEarnings: teamMember.totalEarnings,
         },
-        sponsor: teamMember.sponsorId
-          ? {
-              name: `${teamMember.sponsorId.fname} ${teamMember.sponsorId.lname}`,
-            }
-          : null,
+        sponsor: sponsorInfo,
       },
     };
   } catch (error) {
