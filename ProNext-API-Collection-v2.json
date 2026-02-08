@@ -1,8 +1,8 @@
 {
   "info": {
     "_postman_id": "pronext-backend-api-v2",
-    "name": "ProNext Backend API - v2.0",
-    "description": "Complete ProNext Platform Backend API\nIncludes: Auth, Users, Teams, Meetings, Announcements, Files, Analytics, KYC, Payouts, Commissions, Incentives",
+    "name": "ProNet Backend API - v2.0",
+    "description": "Complete ProNet Platform Backend API\nIncludes: Auth, Users, Teams, Meetings, Announcements, Files, Analytics, KYC, Payouts, Commissions, Incentives",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "_exporter_id": "12345678"
   },

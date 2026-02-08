@@ -22,8 +22,8 @@ const initializeSendGrid = () => {
 
 // Get config values
 const getConfig = () => ({
-  FROM_EMAIL: process.env.FROM_EMAIL || 'noreply@pronext.com',
-  FROM_NAME: process.env.FROM_NAME || 'ProNext Platform'
+  FROM_EMAIL: process.env.FROM_EMAIL || 'noreply@pronet.com',
+  FROM_NAME: process.env.FROM_NAME || 'ProNet Platform'
 });
 
 /**
@@ -58,23 +58,23 @@ export const sendOtpEmail = async (email, otp, purpose = 'login') => {
     // Customize message based on purpose
     switch (purpose) {
       case 'register':
-        subject = 'Welcome to ProNext - Verify Your Email';
-        title = '👋 Welcome to ProNext!';
+        subject = 'Welcome to ProNet - Verify Your Email';
+        title = '👋 Welcome to ProNet!';
         message = 'Thank you for registering. Please verify your email with this OTP:';
         break;
       case 'login':
-        subject = 'ProNext - Login Verification';
+        subject = 'ProNet - Login Verification';
         title = '🔐 Login Verification';
         message = 'Your login verification code is:';
         validityText = 'This code is valid for <b>1 minute</b>.';
         break;
       case 'reset-password':
-        subject = 'ProNext - Password Reset Request';
+        subject = 'ProNet - Password Reset Request';
         title = '🔑 Reset Your Password';
         message = 'You requested to reset your password. Use this OTP to continue:';
         break;
       case 'admin-forgot-password':
-        subject = 'ProNext Admin - Password Reset';
+        subject = 'ProNet Admin - Password Reset';
         title = '🔑 Admin Password Reset';
         message = 'Admin password reset requested. Your OTP is:';
         break;
@@ -183,12 +183,12 @@ export const sendOtpEmail = async (email, otp, purpose = 'login') => {
               <p class="validity-text">${validityText}</p>
               <div class="warning-text">
                 ⚠️ <strong>Security Notice:</strong> Never share this OTP with anyone. 
-                <span class="brand-name">ProNext</span> will never ask you for this code.
+                <span class="brand-name">ProNet</span> will never ask you for this code.
               </div>
               <p>If you didn't request this code, please ignore this email or contact our support team.</p>
             </div>
             <div class="email-footer">
-              <p>&copy; ${new Date().getFullYear()} ProNext Platform. All rights reserved.</p>
+              <p>&copy; ${new Date().getFullYear()} ProNet Platform. All rights reserved.</p>
               <p>This is an automated email. Please do not reply to this message.</p>
             </div>
           </div>
@@ -235,7 +235,7 @@ export const sendWelcomeEmail = async (email, userName) => {
         email: FROM_EMAIL,
         name: FROM_NAME
       },
-      subject: 'Welcome to ProNext Platform! 🎉',
+      subject: 'Welcome to ProNet Platform! 🎉',
       html: `
         <!DOCTYPE html>
         <html>
@@ -252,15 +252,15 @@ export const sendWelcomeEmail = async (email, userName) => {
         <body>
           <div class="container">
             <div class="header">
-              <h1>Welcome to ProNext! 🎉</h1>
+              <h1>Welcome to ProNet! 🎉</h1>
             </div>
             <div class="content">
               <h2>Hello ${userName}!</h2>
-              <p>Thank you for joining ProNext Platform. We're excited to have you on board!</p>
+              <p>Thank you for joining ProNet Platform. We're excited to have you on board!</p>
               <p>Your account has been successfully created and verified. You can now access all features of our platform.</p>
-              <a href="${process.env.FRONTEND_URL || 'https://pronext.com'}" class="button">Get Started</a>
+              <a href="${process.env.FRONTEND_URL || 'https://pronet.com'}" class="button">Get Started</a>
               <p>If you have any questions, feel free to reach out to our support team.</p>
-              <p>Best regards,<br>The ProNext Team</p>
+              <p>Best regards,<br>The ProNet Team</p>
             </div>
           </div>
         </body>
@@ -299,7 +299,7 @@ export const sendPasswordResetConfirmation = async (email) => {
         email: FROM_EMAIL,
         name: FROM_NAME
       },
-      subject: 'ProNext - Password Changed Successfully',
+      subject: 'ProNet - Password Changed Successfully',
       html: `
         <!DOCTYPE html>
         <html>
@@ -318,7 +318,7 @@ export const sendPasswordResetConfirmation = async (email) => {
             </div>
             <p>Your password has been successfully reset.</p>
             <p>If you did not make this change, please contact our support team immediately.</p>
-            <p>Best regards,<br>The ProNext Team</p>
+            <p>Best regards,<br>The ProNet Team</p>
           </div>
         </body>
         </html>

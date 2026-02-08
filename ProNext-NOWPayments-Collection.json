@@ -1,7 +1,7 @@
 {
   "info": {
     "_postman_id": "pronext-nowpayments-integration",
-    "name": "ProNext NOWPayments Integration",
+    "name": "ProNet NOWPayments Integration",
     "description": "Complete API collection for NOWPayments integration testing with all payment operations and endpoints",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },

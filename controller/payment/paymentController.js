@@ -684,6 +684,7 @@ export const createSubscriptionPayment = async (req, res) => {
       "monthly": 29.99,
       "quarterly": 79.99,
       "yearly": 299.99,
+      "annual": 135,
       "Basic": 5,
       "Premium": 15,
       "Pro": 30,
@@ -693,6 +694,7 @@ export const createSubscriptionPayment = async (req, res) => {
       "monthly": "Monthly Subscription - 30 Days",
       "quarterly": "Quarterly Subscription - 90 Days",
       "yearly": "Yearly Subscription - 365 Days",
+      "annual": "Annual Package - 360 Days",
       "Basic": "Basic Subscription - 30 Days",
       "Premium": "Premium Subscription - 30 Days",
       "Pro": "Pro Subscription - 30 Days",
@@ -814,6 +816,7 @@ export const createSubscriptionPayment = async (req, res) => {
     );
   } catch (error) {
     paymentLogger.error("Error creating subscription payment", error);
-    return ErrorResponse(res, "Failed to create subscription payment", 500);
+    const errorMessage = error.response?.data?.message || error.message || "Failed to create subscription payment";
+    return ErrorResponse(res, errorMessage, 500);
   }
 };

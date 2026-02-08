@@ -93,8 +93,10 @@ app.use(helmet({
 // Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
+  max: 1000, // limit each IP to 1000 requests per windowMs
   message: "Too many requests from this IP, please try again later.",
+  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
 });
 
 // Body parsing middleware
@@ -219,7 +221,7 @@ httpServer.listen(PORT, () => {
 });
 
 app.get("/", (req, res) => {
-  res.send(`<h1>🚀 ProNext Backend API is running on port ${PORT}</h1>`);
+  res.send(`<h1>🚀 ProNet Backend API is running on port ${PORT}</h1>`);
 });
 
 app.get("/health", (req, res) => {

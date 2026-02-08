@@ -290,21 +290,19 @@ export const processMonthlyBonuses = async (userId) => {
       }
     }
 
-    // Update Commission
-    let commission = await Commission.findOne({ userId });
-    if (!commission) {
-      commission = new Commission({ userId });
-    }
-
-    commission.totalPending += totalBonus;
-    commission.totalCommission += totalBonus;
-    await commission.save();
+    // Return summary without trying to update non-existent Commission fields
+    const pendingCommissions = await Commission.find({ 
+      userId,
+      status: 'pending'
+    });
+    
+    const totalPending = pendingCommissions.reduce((sum, c) => sum + c.netAmount, 0);
 
     return {
       success: true,
       message: "Bonuses processed successfully",
       totalBonusGenerated: totalBonus,
-      commission,
+      totalPending,
     };
   } catch (error) {
     return {
@@ -355,16 +353,52 @@ export const getBonusHistory = async (userId, page = 1, limit = 10) => {
 // Get Commission Details
 export const getCommissionDetails = async (userId) => {
   try {
-    let commission = await Commission.findOne({ userId });
+    // Aggregate commission data from existing records
+    const commissions = await Commission.find({ userId });
+    
+    const stats = {
+      totalPending: 0,
+      totalApproved: 0,
+      totalPaid: 0,
+      totalRejected: 0,
+      totalCommission: 0,
+      byType: {
+        direct_bonus: 0,
+        level_income: 0,
+        binary_bonus: 0,
+        reward_bonus: 0,
+      },
+    };
 
-    if (!commission) {
-      commission = new Commission({ userId });
-      await commission.save();
-    }
+    commissions.forEach((comm) => {
+      stats.totalCommission += comm.netAmount;
+      
+      switch (comm.status) {
+        case 'pending':
+          stats.totalPending += comm.netAmount;
+          break;
+        case 'approved':
+        case 'processing':
+          stats.totalApproved += comm.netAmount;
+          break;
+        case 'paid':
+          stats.totalPaid += comm.netAmount;
+          break;
+        case 'rejected':
+        case 'cancelled':
+          stats.totalRejected += comm.netAmount;
+          break;
+      }
+      
+      if (stats.byType[comm.commissionType] !== undefined) {
+        stats.byType[comm.commissionType] += comm.netAmount;
+      }
+    });
 
     return {
       success: true,
-      commission,
+      commission: stats,
+      records: commissions.slice(0, 10), // Return latest 10 records
     };
   } catch (error) {
     return {
@@ -609,8 +643,7 @@ export const initMembership = async (userId) => {
       isActive: true,
     });
 
-    const commission = new Commission({ userId });
-    await Promise.all([teamMember.save(), commission.save()]);
+    await teamMember.save();
 
     teamLogger.success("Team membership created", { userId, referralCode, leftReferralCode, rightReferralCode });
 
@@ -649,6 +682,8 @@ export const checkMemberStatus = async (userId) => {
         level: teamMember.level,
         directCount: teamMember.directCount,
         totalDownline: teamMember.totalDownline,
+        sponsorId: teamMember.sponsorId,
+        hasJoinedTeam: !!teamMember.sponsorId,
       },
     };
   } catch (error) {
@@ -821,9 +856,6 @@ export const createTeamMember = async (userId, sponsorId, packagePrice) => {
     }
 
     await newMember.save();
-
-    const commission = new Commission({ userId });
-    await commission.save();
 
     teamLogger.success("Team member created", { userId, referralCode, leftReferralCode, rightReferralCode });
 
@@ -1254,18 +1286,11 @@ export const applyReferralCode = async (userId, code) => {
       approvalDate: new Date(),
     });
 
-    // Create or get commission record
-    let commission = await Commission.findOne({ userId });
-    if (!commission) {
-      commission = new Commission({ userId });
-    }
-
     // Save all changes
     await Promise.all([
       teamMember.save(),
       referrerMember.save(),
       referral.save(),
-      commission.save(),
     ]);
 
     // Update referrer's level if needed

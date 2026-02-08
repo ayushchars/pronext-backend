@@ -149,7 +149,7 @@ async function sendTestWebhook(scenarioName, payload, secret) {
 async function runAllTests() {
   console.log("\n");
   console.log("╔══════════════════════════════════════════════════════════════════╗");
-  console.log("║          🔔 WEBHOOK TESTING HELPER - ProNext Payments             ║");
+  console.log("║          🔔 WEBHOOK TESTING HELPER - ProNet Payments             ║");
   console.log("╚══════════════════════════════════════════════════════════════════╝");
 
   console.log(`\n🎯 Server: ${SERVER_URL}`);

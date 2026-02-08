@@ -1,7 +1,7 @@
 {
-  "name": "pronext-backend",
+  "name": "pronet-backend",
   "version": "1.0.0",
-  "description": "ProNext Platform - Complete Backend API with Sessions, Users, Meetings, Announcements, Files & Analytics",
+  "description": "ProNet Platform - Complete Backend API with Sessions, Users, Meetings, Announcements, Files & Analytics",
   "main": "app.js",
   "type": "module",
   "scripts": {

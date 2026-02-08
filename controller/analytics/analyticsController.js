@@ -512,7 +512,7 @@ export const generatePdfReport = async (req, res) => {
     doc.pipe(stream);
 
     // Header
-    doc.fontSize(24).text("ProNext Analytics Report", { align: "center" });
+    doc.fontSize(24).text("ProNet Analytics Report", { align: "center" });
     doc.fontSize(12).text(`Generated: ${new Date().toLocaleString()}`, {
       align: "center",
     });

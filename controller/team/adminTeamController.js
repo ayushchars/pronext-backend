@@ -133,9 +133,6 @@ export const createTeamMember = async (userId, sponsorId, packagePrice) => {
 
     await newMember.save();
 
-    const commission = new Commission({ userId });
-    await commission.save();
-
     adminLogger.success("Team member created", { userId, referralCode, leftReferralCode, rightReferralCode });
 
     return {

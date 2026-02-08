@@ -54,6 +54,26 @@ export const updateUserProfile = async (req, res) => {
       }
     }
 
+    // Validate date of birth if provided
+    if (dob) {
+      const dobDate = new Date(dob);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Reset time to compare only dates
+      
+      if (dobDate > today) {
+        userLogger.warn("Invalid date of birth - future date", { dob, userId });
+        return ErrorResponse(res, "Date of birth cannot be in the future", 400);
+      }
+      
+      // Optional: Check if DOB is reasonable (e.g., not older than 120 years)
+      const minDate = new Date();
+      minDate.setFullYear(minDate.getFullYear() - 120);
+      if (dobDate < minDate) {
+        userLogger.warn("Invalid date of birth - too old", { dob, userId });
+        return ErrorResponse(res, "Date of birth is invalid", 400);
+      }
+    }
+
     // Update user
     const updateData = {
       fname: fname.trim(),

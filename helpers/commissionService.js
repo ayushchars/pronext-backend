@@ -37,7 +37,7 @@ export const generatePurchaseCommissions = async (buyerId, amount, transactionId
     if (!directSponsor) return [];
 
     // Generate Direct Bonus for sponsor
-    const directBonus = await generateDirectBonus(directSponsor, buyerId, transactionId, amount);
+    const directBonus = await generateDirectBonus(directSponsor, buyerId, transactionId, amount, buyer);
     if (directBonus) commissions.push(directBonus);
 
     // Generate Level Income for all upline members
@@ -63,7 +63,7 @@ export const generatePurchaseCommissions = async (buyerId, amount, transactionId
  * Generate Direct Bonus for the sponsor
  * Direct bonus is paid for referrals and resets every 30 days
  */
-export const generateDirectBonus = async (sponsorTeam, buyerId, transactionId, amount) => {
+export const generateDirectBonus = async (sponsorTeam, buyerId, transactionId, amount, buyer) => {
   try {
     if (!sponsorTeam || !sponsorTeam.userId) return null;
 
